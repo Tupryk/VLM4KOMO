@@ -28,3 +28,4 @@ __pycache__/
 data/
 *.pcd
 *.json
+scene_image.jpg
