@@ -6,20 +6,23 @@ The following defines an optimization problem over a single configuration. The K
 
 The constructor declares over how many configurations (single, waypoints, path..) we optimize. The addObjective methods add costs or constraints:
 
+```
 qHome = C.getJointState()
 
 komo = ry.KOMO(C, 1, 1, 0, False)
 komo.addObjective(times=[], feature=ry.FS.jointState, frames=[], type=ry.OT.sos, scale=[1e-1], target=qHome);
 komo.addObjective([], ry.FS.positionDiff, ['l_gripper', 'box'], ry.OT.eq, [1e1]);
+```
 
 We explain the KOMO constructor arguments later. (The above defines an IK problem.)
 
 The addObjective method has signature * times: the time intervals (subset of configurations in a path) over which this feature is active (irrelevant for IK) * feature: the feature symbol (see advanced Feature tutorial) * frames: the frames for which the feature is computed, given as list of frame names * type: whether this is a sum-of-squares (sos) cost, or eq or ineq constraint * scale: the matrix(!) by which the feature is multiplied * target: the offset which is substracted from the feature (before scaling)
 
-Example for more constraints: box grasping IK
+Example for more constraints: box grasping IK
 
 The key to design motions is to add clever constraints. Here is an example for more realistic box grasping:
 
+```
 komo = ry.KOMO(C, 1, 1, 0, True)
 komo.addObjective([], ry.FS.jointState, [], ry.OT.sos, [1e-1], qHome)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq)
@@ -28,11 +31,13 @@ komo.addObjective([], ry.FS.positionDiff, ['l_gripper', 'box'], ry.OT.eq, [1e1])
 komo.addObjective([], ry.FS.scalarProductXX, ['l_gripper', 'box'], ry.OT.eq, [1e1], [0])
 komo.addObjective([], ry.FS.scalarProductXZ, ['l_gripper', 'box'], ry.OT.eq, [1e1], [0])
 komo.addObjective([], ry.FS.distance, ['l_palm', 'box'], ry.OT.ineq, [1e1])
+```
 
 The two scalarProduct feature state that the gripper x-axis (which is the axis connecting the fingers) should be orthogonal to the object x- and z-axes. That implies fingers to normally oppose the object’s y-planes.
 
 So the solver finds feasible grasps and exploits the null space of the constraints (grasps from different directions, but always opposing the y-planes).
 
+```
 komo = []
 for k in range(3):
     komo.append(ry.KOMO(C, 1, 1, 0, True))
@@ -50,6 +55,7 @@ komo[1].addObjective([], ry.FS.scalarProductXZ, ['l_gripper', 'box'], ry.OT.eq, 
 
 komo[2].addObjective([], ry.FS.scalarProductXX, ['l_gripper', 'box'], ry.OT.eq, [1e1], [0])
 komo[2].addObjective([], ry.FS.scalarProductXY, ['l_gripper', 'box'], ry.OT.eq, [1e1], [0])
+```
 
 Waypoints example
 
@@ -57,6 +63,7 @@ Motion design can often be done by computing waypoints, i.e. a none-fine-resolut
 
 Let’s define a configuration where the desired gripper waypoints are pre-defined as marker frames. (That’s a common pattern: Simplify defining constraints by adding helper reference frames in the configuration.)
 
+```
 C = ry.Config()
 C.addFile(ry.raiPath('scenarios/pandaSingle.g'))
 C.addFrame('way1'). setShape(ry.ST.marker, [.1]) .setPosition([.4, .2, 1.])
@@ -64,9 +71,11 @@ C.addFrame('way2'). setShape(ry.ST.marker, [.1]) .setPosition([.4, .2, 1.4])
 C.addFrame('way3'). setShape(ry.ST.marker, [.1]) .setPosition([-.4, .2, 1.])
 C.addFrame('way4'). setShape(ry.ST.marker, [.1]) .setPosition([-.4, .2, 1.4])
 C.view()
+```
 
 Now we can define a KOMO problem over 4 configurations, where at each configuration we impose position equality between gripper and a waypoint:
 
+```
 komo = ry.KOMO(C, phases=4, slicesPerPhase=1, kOrder=1, enableCollisions=False)
 komo.addControlObjective([], 0, 1e-1)
 komo.addControlObjective([], 1, 1e0)
@@ -74,6 +83,7 @@ komo.addObjective([1], ry.FS.positionDiff, ['l_gripper', 'way1'], ry.OT.eq, [1e1
 komo.addObjective([2], ry.FS.positionDiff, ['l_gripper', 'way2'], ry.OT.eq, [1e1])
 komo.addObjective([3], ry.FS.positionDiff, ['l_gripper', 'way3'], ry.OT.eq, [1e1])
 komo.addObjective([4], ry.FS.positionDiff, ['l_gripper', 'way4'], ry.OT.eq, [1e1])
+```
 
 The KOMO constructor has arguments: * config: the configuration, which is copied once (for IK) or many times (for waypoints/paths) to be the optimization variable * phases: the number P of phases (which essentially defines the real-valued interval [0,P] over which objectives can be formulated) * slicesPerPhase: the discretizations per phase -> in total we have phasesslicesPerPhases configurations which form the path and over which we optimize kOrder: the ‘Markov-order’, i.e., maximal tuple of configurations over which we formulate features (e.g. take finite differences) * enableCollisions: if True, KOMO runs a broadphase collision check (using libFCL) in each optimization step – only then accumulative collision/penetration features will correctly evaluate to non-zero. But this is costly.
 
@@ -89,6 +99,7 @@ Path example
 
 Let’s do almost the same, but for a fine path. First order=1, leading to zig-zag, then order=2, leading to smooth path.
 
+```
 # Note, the slicesPerPhase=10 is the only difference to above
 C.setJointState(qHome)
 komo = ry.KOMO(C, 4, 10, 1, False)
@@ -98,7 +109,9 @@ komo.addObjective([1], ry.FS.positionDiff, ['l_gripper', 'way1'], ry.OT.eq, [1e1
 komo.addObjective([2], ry.FS.positionDiff, ['l_gripper', 'way2'], ry.OT.eq, [1e1])
 komo.addObjective([3], ry.FS.positionDiff, ['l_gripper', 'way3'], ry.OT.eq, [1e1])
 komo.addObjective([4], ry.FS.positionDiff, ['l_gripper', 'way4'], ry.OT.eq, [1e1])
+```
 
+```
 # only differences: the kOrder=2, control objective order 2, constrain final jointState velocity to zero
 C.setJointState(qHome)
 komo = ry.KOMO(C, 4, 10, 2, False)
@@ -109,5 +122,6 @@ komo.addObjective([2], ry.FS.positionDiff, ['l_gripper', 'way2'], ry.OT.eq, [1e1
 komo.addObjective([3], ry.FS.positionDiff, ['l_gripper', 'way3'], ry.OT.eq, [1e1])
 komo.addObjective([4], ry.FS.positionDiff, ['l_gripper', 'way4'], ry.OT.eq, [1e1])
 komo.addObjective([4], ry.FS.jointState, [], ry.OT.eq, [1e1], [], order=1)
+```
 
 Notice the new last objective! Without it, final velocity would not be zero. The last objective constrains the order=1 (i.e. velocity!) of the jointState feature to be zero.

@@ -1,0 +1,14 @@
+Here we define the constraints of a simple push motion of one frame onto a target.
+
+First we initialize the KOMO problem
+The constructor declares over how many configurations (single, waypoints, path..) we optimize. The addObjective methods add costs or constraints:
+
+```
+qHome = C.getJointState()
+
+komo = ry.KOMO(C, 1, 1, 0, False)
+komo.addObjective(times=[], feature=ry.FS.jointState, frames=[], type=ry.OT.sos, scale=[1e-1], target=qHome);
+komo.addObjective([], ry.FS.positionDiff, ['l_gripper', 'box'], ry.OT.eq, [1e1]);
+```
+
+Now onto the constraints which define the push problem.
