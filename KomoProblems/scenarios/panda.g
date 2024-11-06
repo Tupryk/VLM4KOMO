@@ -5,7 +5,9 @@ base: {
  contact: 1, logical: { },
  friction: .5
 }
-Include </home/denis/miniconda3/envs/myenv/lib/python3.8/site-packages/robotic/rai-robotModels/scenarios/panda_fixGripper.g>
+#Include </home/denis/miniconda3/envs/myenv/lib/python3.8/site-packages/robotic/rai-robotModels/scenarios/panda_fixGripper.g>
+Include </home/eckart/miniconda3/envs/project/lib/python3.10/site-packages/robotic/rai-robotModels/scenarios/panda_fixGripper.g>
+
 Edit panda_base (base): { Q: "t(0 .33 .01) d(-90 0 0 1)" joint:rigid }
 
 Edit panda_joint2: { q: -.5 }
