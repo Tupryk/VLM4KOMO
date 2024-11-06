@@ -1,0 +1,30 @@
+.DS_Store
+
+*.dll
+*.dylib
+
+# Robotic logs
+z.costReport
+z.costReport.plt
+z.log.global
+z.plotcmd
+
+#compile temporaries 
+build/
+photos/
+.*csv
+*.exe
+*.o
+*.a
+*.so
+*.swp
+
+#python temporaries
+__pycache__/
+*.pyc
+.ipynb_checkpoints
+
+#data
+data/
+*.pcd
+*.json

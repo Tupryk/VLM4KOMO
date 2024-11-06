@@ -1,0 +1,4 @@
+Given the image, how would you formulate an optimization problem using ManipulationModeling to place the blob on the bin?
+Just write the code, skip any extra info.
+Skip all imports and extra stuff like loading the model, just describe the komo setup.
+Don't forget to specify the phases and joint limit constraints as well as collision contraints.
