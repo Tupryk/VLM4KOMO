@@ -2,4 +2,8 @@ Given the image, how would you formulate an optimization problem using KOMO.
 Just write the code, skip any extra info.
 Skip all imports and extra stuff like loading the model, just describe the komo setup.
 Don't forget to specify the phases and joint limit constraints as well as collision contraints.
-It should solve the following problem: pushing the blob onto the target
+Don't forget the initialize the KOMO problem correctly, specfying the phases and slices between phases.
+You can asssume a configuration has already been defined.
+Always set the keyOrder to 2.
+Don't define any extra coordinates or frames, all necessary frames are already defined.
+It should solve the following problem: 

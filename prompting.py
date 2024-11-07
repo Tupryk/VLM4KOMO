@@ -1,33 +1,7 @@
 from qwen_vl_utils import process_vision_info
 
 
-def prompt_qwen(model, processor, device: str, task_description: str, image_path: str):
-
-    with open("./prompts/komo_tutorial.txt", 'r') as file:
-        komo_tutorial = file.read()
-
-    with open("./prompts/problem_definition.txt", 'r') as file:
-        problem_definition = file.read()
-
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {
-                    "type": "text",
-                    "text": komo_tutorial,
-                },
-                {
-                    "type": "image",
-                    "image": image_path,
-                },
-                {
-                    "type": "text",
-                    "text": f"{problem_definition}{task_description}",
-                },
-            ],
-        }
-    ]
+def prompt_qwen(model, processor, device: str, messages: list[dict]):
 
     # Preparation for inference
     text = processor.apply_chat_template(

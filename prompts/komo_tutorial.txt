@@ -1,5 +1,12 @@
 KOMO: Motion Optimization
 
+This is how a KOMO problem gets initialized:
+```
+komo = ry.KOMO(C, phases, slicesPerPhase, kOrder, computeCollisions)
+```
+The C stands for the configuration object.
+The phases parameter is a floating point number that specifies how many phases are in the KOMO problem.
+
 Minimal IK example
 
 The following defines an optimization problem over a single configuration. The KOMO object essentially contains (1) a copy of the configuration(s) over which we optimize, and (2) the list of objectives (=costs & constraints) that define the optimization problem.
@@ -59,21 +66,7 @@ komo[2].addObjective([], ry.FS.scalarProductXY, ['l_gripper', 'box'], ry.OT.eq, 
 
 Waypoints example
 
-Motion design can often be done by computing waypoints, i.e. a none-fine-resolution sequence of poses. The BotOp interface can then spline-interpolate between them when executing them.
-
-Let’s define a configuration where the desired gripper waypoints are pre-defined as marker frames. (That’s a common pattern: Simplify defining constraints by adding helper reference frames in the configuration.)
-
-```
-C = ry.Config()
-C.addFile(ry.raiPath('scenarios/pandaSingle.g'))
-C.addFrame('way1'). setShape(ry.ST.marker, [.1]) .setPosition([.4, .2, 1.])
-C.addFrame('way2'). setShape(ry.ST.marker, [.1]) .setPosition([.4, .2, 1.4])
-C.addFrame('way3'). setShape(ry.ST.marker, [.1]) .setPosition([-.4, .2, 1.])
-C.addFrame('way4'). setShape(ry.ST.marker, [.1]) .setPosition([-.4, .2, 1.4])
-C.view()
-```
-
-Now we can define a KOMO problem over 4 configurations, where at each configuration we impose position equality between gripper and a waypoint:
+We can define a KOMO problem over 4 configurations, where at each configuration we impose position equality between gripper and a waypoint:
 
 ```
 komo = ry.KOMO(C, phases=4, slicesPerPhase=1, kOrder=1, enableCollisions=False)
@@ -103,7 +96,7 @@ Let’s do almost the same, but for a fine path. First order=1, leading to zig-z
 # Note, the slicesPerPhase=10 is the only difference to above
 C.setJointState(qHome)
 komo = ry.KOMO(C, 4, 10, 1, False)
-komo.addControlObjective([], 0, 1e-1) # what happens if you change weighting to 1e0? why?
+komo.addControlObjective([], 0, 1e-1)
 komo.addControlObjective([], 1, 1e0)
 komo.addObjective([1], ry.FS.positionDiff, ['l_gripper', 'way1'], ry.OT.eq, [1e1])
 komo.addObjective([2], ry.FS.positionDiff, ['l_gripper', 'way2'], ry.OT.eq, [1e1])
@@ -115,7 +108,7 @@ komo.addObjective([4], ry.FS.positionDiff, ['l_gripper', 'way4'], ry.OT.eq, [1e1
 # only differences: the kOrder=2, control objective order 2, constrain final jointState velocity to zero
 C.setJointState(qHome)
 komo = ry.KOMO(C, 4, 10, 2, False)
-komo.addControlObjective([], 0, 1e-1) # what happens if you change weighting to 1e0? why?
+komo.addControlObjective([], 0, 1e-1)
 komo.addControlObjective([], 2, 1e0)
 komo.addObjective([1], ry.FS.positionDiff, ['l_gripper', 'way1'], ry.OT.eq, [1e1])
 komo.addObjective([2], ry.FS.positionDiff, ['l_gripper', 'way2'], ry.OT.eq, [1e1])
