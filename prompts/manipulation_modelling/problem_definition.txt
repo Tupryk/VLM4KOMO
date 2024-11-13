@@ -1,0 +1,8 @@
+Given the image, how would you formulate a planning problem using the ManipulationModelling class.
+Just write the code, skip any extra info.
+Skip all imports and extra stuff like loading the model, just describe the ManipulationModelling setup.
+You can asssume a configuration has already been defined.
+Don't forget to change the obj parameter to the right frame name needed for this manipulation task.
+Don't forget to define the submotions, if necessary. 
+Don't define any extra coordinates or frames, all necessary frames are already defined.
+It should solve the following problem: 

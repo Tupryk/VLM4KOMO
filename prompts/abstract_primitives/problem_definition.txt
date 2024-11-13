@@ -1,0 +1,4 @@
+Given the image, how would you write the code, given the external functions for solving the path planning problem.
+Just write the code, skip any extra info.
+Don't define any extra coordinates or frames, all necessary frames are already defined.
+It should solve the following problem: 

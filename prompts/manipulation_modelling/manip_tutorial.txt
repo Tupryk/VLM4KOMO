@@ -1,0 +1,120 @@
+ManipulationModelling
+
+The following text describes the usage of the ManipulationModelling framework, which allows for the straightforward creation of robot manipulation problems.
+
+
+Modelling a simple pushing motion example:
+
+In this example, we model a simple pushing motion using the ManipulationModelling class. We start by defining two key time slices: one represents the robot's joint state at the start of the push motion (positioned in front of the object to be pushed), and the other represents the target position of the object at the end of the push. Once we have these key frames, we can interpolate the states for the sub-motions between them, adding constraints where necessary.
+
+Main Push Motion Setup
+The primary motion describes the push itself. We start by initializing a ManipulationModelling object named M. Then, we set up a pick-and-place task, which essentially is a two-phase pick-and-place motion problem. The parameters passed to this method include:
+The current robot configuration (C),
+The object frame (in this case obj, change corresponding to frame name of to manipulated object),
+The gripper frame (gripper), and
+A boolean indicating whether to consider accumulated collisions (accumulated_collisions).
+
+Next, we define a straight push between the first and second time slices using the notation [1, 2]. Note that time slices are 0-indexed, meaning the complete sequence is [0, 2]. Finally, we specify the target xy position at the last time slice.
+Afterwards we set the target position of our object at the end of our motion, i.e. in this case at timeslice 2 to the target position.
+Bringing it all together we get.
+
+```
+M = manip.ManipulationModelling()
+M.setup_pick_and_place_waypoints(C, gripper, obj, accumulated_collisions=False)
+M.straight_push([1, 2], obj, gripper, table)
+M.target_xy_position(2, obj, target_pos)
+```
+
+Now we need to define two submotions for this kind of task defined with setup_pick_and_place_waypoints().
+First Sub-motion: We define the initial sub-motion to handle retraction and approach.
+
+M1.retractPush([0.0, 0.15], gripper, 0.03): Retracts the gripper to maintain distance from the object.
+M1.approachPush([0.85, 1.0], gripper, 0.03): Approaches the object, setting up the robot in the starting push position.
+M1.keep_distance([0.15, 0.85], obj, 'l_palm', 0.02): Maintains a specified distance between the object and the left palm.
+
+The second Sub-motion defines the push. We dont need additional constraints here, but we need to define it for completeness.
+
+```
+M2 = M.sub_motion(1, accumulated_collisions=False)
+```
+
+Bringing everything together for the whole pushing task we get:
+
+```
+M = manip.ManipulationModelling()
+M.setup_pick_and_place_waypoints(C, gripper, obj, accumulated_collisions=False)
+M.straight_push([1, 2], obj, gripper, table)
+M.target_xy_position(2, obj, target_pos)
+
+
+M1 = M.sub_motion(0, accumulated_collisions=False)
+M1.retractPush([.0, .15], gripper, .03)
+M1.approachPush([.85, 1.], gripper, .03)
+M1.keep_distance([.15,.85], obj, 'l_palm', .02)
+
+M2 = M.sub_motion(1, accumulated_collisions=False)
+```
+
+Modelling a simple pick and place motion example:
+
+We now want to model a motion plan for a simple pick and place task. We start by creating our ManipulationModelling object and defining the task with setup_pick_and_place_waypoints() because we once again have a two-time-step task with a pick motion at timestep 1 and a place motion at timestep 2.
+
+```
+M = manip.ManipulationModelling()
+M.setup_pick_and_place_waypoints(C, gripper, obj)
+M.grasp_box(1, gripper, obj, palm)
+M.target_relative_xy_position(2, obj, table, place_position)
+```
+
+We define a grasp_box() at timestep 1. This function takes as argumentent the timestep of the grasp, the gripper which should grasp the object, the object or box in this case which should be grasped and the palm which should avoid collisions with the object.
+
+
+Now onto our first submotion for the time of the grasp.
+
+```
+M1 = M.sub_motion(0)
+M1.retract([0, .2], gripper)
+M1.keep_distance([.3, .7], palm, obj, .05)
+M1.approach([.8, 1], gripper)
+```
+
+Here the first line defines a submotion from timestep 0 (the first timestep essentially in which the robot does the picking).
+The next line assures a retract motion of the gripper in the first fifth of this phase (denoted by [0, .2]).
+The next line ensures a minimal distance of .05 meters between object and robot palm in the middle of this phase (denoted by the time interval [.3, .7]).
+The last line of this code segment defines an approach motion of the gripper in the last fifth of this phase (denoted by [.8, 1]).
+
+
+Now for our second submotion for the time of the place.
+
+```
+M2 = M.sub_motion(1)
+M2.keep_distance([], table, collisionFrameCamera)
+M2.keep_distance([], palm, obj)
+M2.keep_distance([.2, .8], table, obj, .04)
+```
+
+Here the first line defines a submotion from timestep 1 (the second timestep essentially in which the robot does the placing and the previous grasp has been successful).
+The next line assures we keep a small fixed distance from the table to the collision frame of the wrist camera during every timestep of the submotion (denoted here by an empty list []).
+The next line assures a fixed little distance between the palm of the robot and the object.
+The last line of this code segment defines a distance constraint between the first fifth and last fifth of the motion (denoted here by [.2, .8]). In the middle of this placing submotion we want to have a distance of at least .04 meters in this case of the object and the table.
+
+Bringing this all together we get now:
+
+```
+M = manip.ManipulationModelling()
+M.setup_pick_and_place_waypoints(C, gripper, obj)
+M.grasp_box(1, gripper, obj, palm)
+M.target_relative_xy_position(2, obj, table, place_position)
+
+M1 = M.sub_motion(0)
+M1.keep_distance([.3, .7], palm, obj, .05)
+M1.retract([0, .2], gripper)
+M1.approach([.8, 1], gripper)
+
+M2 = M.sub_motion(1)
+M2.keep_distance([], table, collisionFrameCamera)
+M2.keep_distance([], palm, obj)
+M2.keep_distance([.2, .8], table, obj, .04)
+```
+
+Describing the motion plan of a pick and place task from an box-shaped object named obj to a target position named place_position.
