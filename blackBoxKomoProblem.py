@@ -9,7 +9,9 @@ def str_to_np_array(text: str) -> np.ndarray:
 
 class BlackBoxKomoProblem:
 
-    def __init__(self, text: str,
+    def __init__(self,
+                 C: ry.Config,
+                 text: str,
                  scales: bool=False,
                  times: bool=False,
                  targets: bool=False,
@@ -29,7 +31,7 @@ class BlackBoxKomoProblem:
                     "type": params_in_objective[3].replace(" ", "").replace(")", ""),
                 }
                 if not objective_as_dict["feature"] in ["ry.FS.accumulatedCollisions", "ry.FS.jointLimits"]:
-                    objective_as_dict["scale"] = str_to_np_array(lists[2])
+                    objective_as_dict["scale"] = str_to_np_array(lists[2].replace(" ", "").replace(")", ""))
                     if len(lists) > 3:
                         objective_as_dict["target"] = params_in_objective[-1].replace(" ", "").replace(")", "")
                         if objective_as_dict["target"].startswith("q"):
@@ -49,8 +51,7 @@ class BlackBoxKomoProblem:
         self.times = times
         self.targets = targets
         self.features_to_be_optimized = features_to_be_optimized
-        self.C = ry.Config()
-        self.C.addFile(ry.raiPath('scenarios/pandaSingle.g'))
+        self.C = C
 
     def run_komo(self) -> np.ndarray:
 
@@ -120,8 +121,21 @@ komo = ry.KOMO(C, 1, 1, 0, True)
 komo.addObjective([], ry.FS.jointState, [], ry.OT.sos, [1e-1], qHome)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq)
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)
+
+komo.addObjective([], ry.FS.positionDiff, ['l_gripper', 'box'], ry.OT.eq, [1e1])
+komo.addObjective([], ry.FS.scalarProductXX, ['l_gripper', 'box'], ry.OT.eq, [1e1], [0])
+komo.addObjective([], ry.FS.scalarProductXZ, ['l_gripper', 'box'], ry.OT.eq, [1e1], [0])
+komo.addObjective([], ry.FS.distance, ['l_palm', 'box'], ry.OT.ineq, [1e1])
 """
-    bbk = BlackBoxKomoProblem(komo_text)
+    C = ry.Config()
+    C.addFile(ry.raiPath('scenarios/pandaSingle.g'))
+    C.addFrame('box') \
+        .setPosition([-.25,.1,1.]) \
+        .setShape(ry.ST.ssBox, size=[.06,.06,.06,.005]) \
+        .setColor([1,.5,0]) \
+        .setContact(1)
+
+    bbk = BlackBoxKomoProblem(C, komo_text)
     action, observation = bbk.reset()
     observation = bbk.step(action)
     
