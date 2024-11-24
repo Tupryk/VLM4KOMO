@@ -26,7 +26,7 @@ class BlackBoxKomoProblem:
                     "times": str_to_np_array(lists[0]),
                     "feature": params_in_objective[1].replace(" ", ""),
                     "frames": ast.literal_eval(lists[1]),
-                    "type": params_in_objective[3].replace(" ", ""),
+                    "type": params_in_objective[3].replace(" ", "").replace(")", ""),
                 }
                 if not objective_as_dict["feature"] in ["ry.FS.accumulatedCollisions", "ry.FS.jointLimits"]:
                     objective_as_dict["scale"] = str_to_np_array(lists[2])
@@ -41,14 +41,16 @@ class BlackBoxKomoProblem:
 
             elif line.startswith("komo = "):
                 init_params = line.split(",")
-                self.komo_init_params = [float(p) for p in init_params[1:-1]]
+                self.komo_init_params = [int(p) for p in init_params[1:-1]]
+                self.komo_init_params[0] = float(self.komo_init_params[0])
                 self.komo_init_params.append(bool(init_params[-1].replace(")", "")))
 
         self.scales = scales
         self.times = times
         self.targets = targets
         self.features_to_be_optimized = features_to_be_optimized
-        self.C = None
+        self.C = ry.Config()
+        self.C.addFile(ry.raiPath('scenarios/pandaSingle.g'))
 
     def run_komo(self) -> np.ndarray:
 
@@ -56,11 +58,11 @@ class BlackBoxKomoProblem:
 
         for obj in self.objectives:
             if not "scale" in obj.keys():
-                komo.addObjective(obj["times"], ast.literal_eval(obj["feature"]), obj["frames"], ast.literal_eval(obj["type"]))
+                komo.addObjective(obj["times"], eval(obj["feature"]), obj["frames"], eval(obj["type"]))
             elif not "target" in obj.keys():
-                komo.addObjective(obj["times"], ast.literal_eval(obj["feature"]), obj["frames"], ast.literal_eval(obj["type"]), obj["scale"])
+                komo.addObjective(obj["times"], eval(obj["feature"]), obj["frames"], eval(obj["type"]), obj["scale"])
             else:
-                komo.addObjective(obj["times"], ast.literal_eval(obj["feature"]), obj["frames"], ast.literal_eval(obj["type"]), obj["scale"], obj["target"])
+                komo.addObjective(obj["times"], eval(obj["feature"]), obj["frames"], eval(obj["type"]), obj["scale"], obj["target"])
 
         ret = ry.NLP_Solver(komo.nlp(), verbose=0).solve()
 
@@ -118,11 +120,6 @@ komo = ry.KOMO(C, 1, 1, 0, True)
 komo.addObjective([], ry.FS.jointState, [], ry.OT.sos, [1e-1], qHome)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq)
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)
-
-komo.addObjective([], ry.FS.positionDiff, ['l_gripper', 'box'], ry.OT.eq, [1e1])
-komo.addObjective([], ry.FS.scalarProductXX, ['l_gripper', 'box'], ry.OT.eq, [1e1], [0])
-komo.addObjective([], ry.FS.scalarProductXZ, ['l_gripper', 'box'], ry.OT.eq, [1e1], [0])
-komo.addObjective([], ry.FS.distance, ['l_palm', 'box'], ry.OT.ineq, [1e1])
 """
     bbk = BlackBoxKomoProblem(komo_text)
     action, observation = bbk.reset()
