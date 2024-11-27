@@ -16,14 +16,32 @@ class BlackBoxKomoProblem:
                  scales: bool=False,
                  times: bool=False,
                  targets: bool=False,
-                 features_to_be_optimized: list=["ry.FS.position"],
+                 features_to_be_optimized: list=["ry.FS.positionDiff"],
                  verbose = 0
                  ):
         
         lines = text.split("\n")
         self.objectives = []
+        self.ctrl_objectives = []
+
         for line in lines:
             if line.startswith("komo."):
+                # TODO for other paramers (target, deltaFromSlice, deltaToSlice), make work if scale is not given
+                if line.startswith("komo.addControlObjective"):
+
+                    match = re.search(r'\((\[.*?\]|[^,]*),\s*([^,]*),\s*([^)]*)', line)
+                    param1, param2, param3 = match.groups()
+
+                    ctrl_objective_as_dict = {
+                        "times": ast.literal_eval(param1),
+                        "order": int(param2),
+                        "scale": float(param3),
+                        # "target":
+                        # "deltaFromSlice":
+                        # "deltaToSlice":                        
+                    }
+                    self.ctrl_objectives.append(ctrl_objective_as_dict)
+                    continue
                 lists = re.findall(r'\[.*?\]', line)
                 params_in_objective = re.split(r',\s*(?![^\[\]]*\])', line)
 
@@ -57,12 +75,16 @@ class BlackBoxKomoProblem:
         self.C = C
         self.verbose = verbose
     
-    def get_cost(self) -> float:
-        return np.linalg.norm(self.C.getFrame("refTarget").getPosition()-self.C.getFrame("l_gripper").getPosition())
+    def get_cost(self, C) -> float:
+        return np.linalg.norm(C.getFrame("target").getPosition()-C.getFrame("blob").getPosition())
 
     def run_komo(self) -> np.ndarray:
-
-        komo = ry.KOMO(self.C, *self.komo_init_params)
+        C2 = ry.Config()
+        C2.addConfigurationCopy(self.C)
+        komo  = ry.KOMO(C2, 2, 64, 2, True)
+        
+        for ctrObj in self.ctrl_objectives:
+            komo.addControlObjective(ctrObj["times"], ctrObj["order"], ctrObj["scale"])
 
         for obj in self.objectives:
             if not "scale" in obj.keys():
@@ -75,14 +97,17 @@ class BlackBoxKomoProblem:
 
         ret = ry.NLP_Solver(komo.nlp(), verbose=0).solve()
         q = komo.getPath()
-        self.C.setJointState([q[-1]])
-        if self.verbose & 1:
-            print(ret)            
-        if self.verbose & 2:
-            self.C.view(False)
-            time.sleep(.02)
+        duration = .3
+        for t in range(q.shape[0]):
+            if(t==63):
+                C2.attach("l_gripper", "blob")
+            C2.setJointState(q[t])
+            C2.view(False)
+            time.sleep(duration/q.shape[0])
 
-        observation = self.get_cost()
+        C2.attach("table", "blob")
+        observation = self.get_cost(C2)
+        del C2
         return observation
     
     def reset(self) -> tuple[np.ndarray]:
@@ -139,7 +164,7 @@ komo.addObjective([], ry.FS.jointState, [], ry.OT.sos, [1e-1], qHome)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq)
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)
 
-komo.addObjective([1], ry.FS.position, ['l_gripper'], ry.OT.eq, [1e-2], [.1, .1, .8])
+komo.addObjective([1], ry.FS.position, ['l_gripper'], ry.OT.eq, [1e-3], [.1, .1, .8])
 
 """
     C = ry.Config()
