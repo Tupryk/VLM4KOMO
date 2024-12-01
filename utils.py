@@ -4,8 +4,8 @@ import re
 def grasping_within_komo_definition(komo_definition: str) -> list[float]:
 
     komo_lines = komo_definition.splitlines()
-    second_line = komo_lines[1]
-    slices = int(re.findall(r'-?\b\d+\.\d+|-?\b\d+\b', second_line)[1])
+    komo_creation = komo_lines[0]
+    slices = int(re.findall(r'-?\b\d+\.\d+|-?\b\d+\b', komo_creation)[1])
 
     lines_with_prefix = [line for line in komo_lines if line.startswith("komo.addModeSwitch")]
     
@@ -17,28 +17,40 @@ def grasping_within_komo_definition(komo_definition: str) -> list[float]:
     return indices
 
 
+def clean_komo(komo_definition: str) -> str:
+    komo_definition = [line for line in komo_definition.splitlines() if line.strip() not in ("```python", "```")]
+    komo_definition = "\n".join(komo_definition)
+    komo_definition_clean = komo_definition.splitlines()
+    komo_definition_clean = [line for line in komo_definition_clean if not line.startswith("C ") and not line.startswith("C.")]
+    komo_definition_clean = "\n".join(komo_definition_clean)
+    return komo_definition_clean
+
+
 if __name__ == "__main__":
 
-    komo_definition = """hello
-komo.setTiming(2.5, 1, 5., 2)
-#grasp
-komo.addModeSwitch([1, 2.], ry.SY.stable, ["gripper", "box"])
-komo.addObjective([1.], ry.FS.positionDiff, ["gripper", "box"], ry.OT.eq, [1e2])
-komo.addObjective([1.], ry.FS.scalarProductXX, ["gripper", "box"], ry.OT.eq, [1e2], [0.])
-komo.addObjective([1.], ry.FS.vectorZ, ["gripper"], ry.OT.eq, [1e2], [0., 0., 1.])
+    komo_definition = """komo = ry.KOMO(C, 2, 10, 2, True)
 
-#slow - down - up
-komo.addObjective([1.], ry.FS.qItself, [], ry.OT.eq, [], [], 1)
-komo.addObjective([.9,1.1], ry.FS.position, ["gripper"], ry.OT.eq, [], [0.,0.,.1], 2)
+# Grasp the blob
+komo.addModeSwitch([1.0, 2.0], ry.SY.stable, ["l_gripper", "blob"], False)
+komo.addObjective([1.0], ry.FS.positionDiff, ["l_gripper", "blob"], ry.OT.eq, [1e2])
+komo.addObjective([1.0], ry.FS.scalarProductXX, ["l_gripper", "blob"], ry.OT.eq, [1e2], [0.])
+komo.addObjective([1.0], ry.FS.scalarProductXZ, ["l_gripper", "blob"], ry.OT.eq, [1e2], [0.])
 
-#place
-komo.addModeSwitch([2., -1.], ry.SY.stable, ["table", "box"])
-komo.addObjective([2.], ry.FS.positionDiff, ["box", "table"], ry.OT.eq, [1e2], [0,0,.08])
-komo.addObjective([2.], ry.FS.vectorZ, ["gripper"], ry.OT.eq, [1e2], [0., 0., 1.])
+# Move to the bin
+komo.addObjective([1.5], ry.FS.positionDiff, ["blob", "bin"], ry.OT.eq, [1e1])
 
-#slow - down - up
-komo.addObjective([2.], ry.FS.qItself, [], ry.OT.eq, [], [], 1)
-komo.addObjective([1.9,2.2], ry.FS.position, ["gripper"], ry.OT.eq, [], [0.,0.,.1], 2)
+# Place the blob in the bin
+komo.addModeSwitch([2.0, -1.0], ry.SY.stable, ["bin", "blob"], False)
+komo.addObjective([2.0], ry.FS.positionDiff, ["blob", "bin"], ry.OT.eq, [1e2], [0, 0, 0.08])
+komo.addObjective([2.0], ry.FS.vectorZ, ["l_gripper"], ry.OT.eq, [1e2], [0., 0., 1.])
+
+# Add smooth motion objectives
+komo.addControlObjective([], 0, 1e-1)
+komo.addControlObjective([], 2, 1e0)
+
+# Ensure zero velocity at the end
+komo.addObjective([2.0], ry.FS.jointState, [], ry.OT.eq, [1e1], [], order=1)
+
 """
 
     indices = grasping_within_komo_definition(komo_definition)
