@@ -1,9 +1,12 @@
+import robotic as ry
 import re
 import ast
-import numpy as np
-import robotic as ry
 import cma
 import time
+import numpy as np
+from line_profiler import profile
+from simulator import Simulator
+
 
 def str_to_np_array(text: str) -> np.ndarray:
     return np.array(ast.literal_eval(text), dtype=np.float32)
@@ -16,14 +19,29 @@ class BlackBoxKomoProblem:
                  scales: bool=False,
                  times: bool=False,
                  targets: bool=False,
-                 features_to_be_optimized: list=["ry.FS.position"],
+                 features_to_be_optimized: list=["ry.FS.positionDiff"],
                  verbose = 0
                  ):
         
         lines = text.split("\n")
         self.objectives = []
+        self.ctrl_objectives = []
+
         for line in lines:
             if line.startswith("komo."):
+
+                if line.startswith("komo.addControlObjective"):
+
+                    match = re.search(r'\((\[.*?\]|[^,]*),\s*([^,\s]*)\s*(?:,\s*([^)]*))?\)', line)
+                    param1, param2, param3 = match.groups()
+
+                    ctrl_objective_as_dict = {
+                        "times": ast.literal_eval(param1),
+                        "order": int(param2),
+                        "scale": float(param3) if param3 else 1.0,                    
+                    }
+                    self.ctrl_objectives.append(ctrl_objective_as_dict)
+                    continue
                 lists = re.findall(r'\[.*?\]', line)
                 params_in_objective = re.split(r',\s*(?![^\[\]]*\])', line)
 
@@ -46,9 +64,12 @@ class BlackBoxKomoProblem:
 
             elif line.startswith("komo = "):
                 init_params = line.split(",")
-                self.komo_init_params = [int(p) for p in init_params[1:-1]]
-                self.komo_init_params[0] = float(self.komo_init_params[0])
-                self.komo_init_params.append(bool(init_params[-1].replace(")", "")))
+                self.komo_init_params = [
+                    float(init_params[1]),
+                    int(init_params[2]),
+                    int(init_params[3]),
+                    bool(init_params[-1].replace(")", ""))
+                ]
 
         self.scales = scales
         self.times = times
@@ -57,12 +78,17 @@ class BlackBoxKomoProblem:
         self.C = C
         self.verbose = verbose
     
-    def get_cost(self) -> float:
-        return np.linalg.norm(self.C.getFrame("refTarget").getPosition()-self.C.getFrame("l_gripper").getPosition())
+    def get_cost(self, C, xs) -> float:
 
-    def run_komo(self) -> np.ndarray:
+        C.getFrame("box").setPosition(xs[-1][-1][:3])
 
+        return np.linalg.norm(C.getFrame("target").getPosition()-C.getFrame("box").getPosition())
+        
+    def build_komo(self, C: ry.Config) -> ry.KOMO:
         komo = ry.KOMO(self.C, *self.komo_init_params)
+
+        for ctrObj in self.ctrl_objectives:
+            komo.addControlObjective(ctrObj["times"], ctrObj["order"], ctrObj["scale"])
 
         for obj in self.objectives:
             if not "scale" in obj.keys():
@@ -72,17 +98,24 @@ class BlackBoxKomoProblem:
                 komo.addObjective(obj["times"], eval(obj["feature"]), obj["frames"], eval(obj["type"]), obj["scale"])
             else:
                 komo.addObjective(obj["times"], eval(obj["feature"]), obj["frames"], eval(obj["type"]), obj["scale"], obj["target"])
+        
+        return komo
+
+    def run_komo(self) -> np.ndarray:
+        C2 = ry.Config()
+        C2.addConfigurationCopy(self.C)
+        
+        komo = self.build_komo(C2)
 
         ret = ry.NLP_Solver(komo.nlp(), verbose=0).solve()
         q = komo.getPath()
-        self.C.setJointState([q[-1]])
-        if self.verbose & 1:
-            print(ret)            
-        if self.verbose & 2:
-            self.C.view(False)
-            time.sleep(.02)
 
-        observation = self.get_cost()
+        sim = Simulator(C2)
+        xs, qs, xdots, qdots = sim.run_trajectory(q, 2, real_time=False)
+
+        observation = self.get_cost(C2, xs)
+        del C2
+        print(observation)
         return observation
     
     def reset(self) -> tuple[np.ndarray]:
@@ -103,9 +136,8 @@ class BlackBoxKomoProblem:
 
         observation = self.run_komo()
         return action, observation
-        
-    def step(self, action: np.ndarray) -> np.ndarray:
-
+    
+    def set_action(self, action: np.ndarray):
         idx = 0
         for i, obj in enumerate(self.objectives):
             if obj["feature"] in self.features_to_be_optimized:
@@ -126,10 +158,13 @@ class BlackBoxKomoProblem:
                     idx += size
                 
                 self.objectives[i] = obj
-
+        
+    def step(self, action: np.ndarray) -> np.ndarray:
+        self.set_action(action)
         observation = self.run_komo()
         return observation
     
+
 
 if __name__ == "__main__":
     komo_text = """
@@ -139,7 +174,7 @@ komo.addObjective([], ry.FS.jointState, [], ry.OT.sos, [1e-1], qHome)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq)
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)
 
-komo.addObjective([1], ry.FS.position, ['l_gripper'], ry.OT.eq, [1e-2], [.1, .1, .8])
+komo.addObjective([1], ry.FS.position, ['l_gripper'], ry.OT.eq, [1e-3], [.1, .1, .8])
 
 """
     C = ry.Config()
