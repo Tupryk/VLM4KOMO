@@ -84,11 +84,9 @@ class BlackBoxKomoProblem:
     
     def get_cost(self, C) -> float:
         return np.linalg.norm(C.getFrame("target").getPosition()-C.getFrame("blob").getPosition())
-
-    def run_komo(self) -> np.ndarray:
-        C2 = ry.Config()
-        C2.addConfigurationCopy(self.C)
-        komo  = ry.KOMO(C2, 2, 64, 2, True)
+    
+    def build_komo(self, C: ry.Config) -> ry.KOMO:
+        komo  = ry.KOMO(C, 2, 64, 2, True)
         
         for ctrObj in self.ctrl_objectives:
             komo.addControlObjective(ctrObj["times"], ctrObj["order"], ctrObj["scale"])
@@ -101,6 +99,14 @@ class BlackBoxKomoProblem:
                 komo.addObjective(obj["times"], eval(obj["feature"]), obj["frames"], eval(obj["type"]), obj["scale"])
             else:
                 komo.addObjective(obj["times"], eval(obj["feature"]), obj["frames"], eval(obj["type"]), obj["scale"], obj["target"])
+        
+        return komo
+
+    def run_komo(self) -> np.ndarray:
+        C2 = ry.Config()
+        C2.addConfigurationCopy(self.C)
+        
+        komo = self.build_komo(C2)
 
         ret = ry.NLP_Solver(komo.nlp(), verbose=0).solve()
         q = komo.getPath()
@@ -136,9 +142,7 @@ class BlackBoxKomoProblem:
         observation = self.run_komo()
         return action, observation
     
-        
-    def step(self, action: np.ndarray) -> np.ndarray:
-
+    def set_action(self, action: np.ndarray):
         idx = 0
         for i, obj in enumerate(self.objectives):
             if obj["feature"] in self.features_to_be_optimized:
@@ -159,7 +163,9 @@ class BlackBoxKomoProblem:
                     idx += size
                 
                 self.objectives[i] = obj
-
+        
+    def step(self, action: np.ndarray) -> np.ndarray:
+        self.set_action(action)
         observation = self.run_komo()
         return observation
     
