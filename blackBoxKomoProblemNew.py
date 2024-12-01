@@ -1,9 +1,12 @@
+import robotic as ry
 import re
 import ast
-import numpy as np
-import robotic as ry
 import cma
 import time
+import numpy as np
+from line_profiler import profile
+from simulator import Simulator
+
 
 def str_to_np_array(text: str) -> np.ndarray:
     return np.array(ast.literal_eval(text), dtype=np.float32)
@@ -17,6 +20,7 @@ class BlackBoxKomoProblem:
                  times: bool=False,
                  targets: bool=False,
                  features_to_be_optimized: list=["ry.FS.positionDiff"],
+                 engine: ry.SimulationEngine = ry.SimulationEngine.physx,
                  verbose = 0
                  ):
         
@@ -74,6 +78,9 @@ class BlackBoxKomoProblem:
         self.features_to_be_optimized = features_to_be_optimized
         self.C = C
         self.verbose = verbose
+
+        #self._sim = ry.Simulation(C, engine, verbose=verbose)
+        #self.init_state = self._sim.getState()
     
     def get_cost(self, C) -> float:
         return np.linalg.norm(C.getFrame("target").getPosition()-C.getFrame("blob").getPosition())
@@ -97,15 +104,15 @@ class BlackBoxKomoProblem:
 
         ret = ry.NLP_Solver(komo.nlp(), verbose=0).solve()
         q = komo.getPath()
-        duration = .3
-        for t in range(q.shape[0]):
-            if(t==63):
-                C2.attach("l_gripper", "blob")
-            C2.setJointState(q[t])
-            C2.view(False)
-            time.sleep(duration/q.shape[0])
 
-        C2.attach("table", "blob")
+        #C2.view(True)
+        #self.run_trajectory(q, 128, real_time=True)
+        sim = Simulator(C2)
+        xs, qs, xdots, qdots = sim.run_trajectory(q, 2, real_time=True)
+
+        #xs[]
+        C2.getFrame("blob").setPosition(xs[-1][-1][:3])
+
         observation = self.get_cost(C2)
         del C2
         return observation
@@ -128,6 +135,7 @@ class BlackBoxKomoProblem:
 
         observation = self.run_komo()
         return action, observation
+    
         
     def step(self, action: np.ndarray) -> np.ndarray:
 
@@ -155,6 +163,8 @@ class BlackBoxKomoProblem:
         observation = self.run_komo()
         return observation
     
+    
+
 
 if __name__ == "__main__":
     komo_text = """

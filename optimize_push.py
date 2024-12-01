@@ -20,13 +20,13 @@ komo.addControlObjective([], 2, 1e0)
 
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)
 
-komo.addObjective([1], ry.FS.positionDiff, ['l_gripper', "blob"], ry.OT.eq, [1e1], [.1, .1, .1])
+komo.addObjective([1], ry.FS.positionDiff, ['l_gripper', "blob"], ry.OT.eq, [1e1])
 
 komo.addObjective([1,2], ry.FS.vectorZ, ['l_gripper'], ry.OT.eq, [1], [0,0,1])
 komo.addObjective([2], ry.FS.positionDiff, ['l_gripper', "target"], ry.OT.eq, [1e1],  [.2, .2, .2])
 """
     C = ry.Config()
-    C.addFile(ry.raiPath("./scenarios/push_blob.g"))
+    C.addFile(ry.raiPath("./scenarios/pandaSingle.g"))
 
     midpoint = np.array([-0.105, 0.2, 0.745])
 
@@ -49,7 +49,11 @@ komo.addObjective([2], ry.FS.positionDiff, ['l_gripper', "target"], ry.OT.eq, [1
         .setPosition(midpoint) \
         .setShape(ry.ST.capsule, size=[.08, .07]) \
         .setColor([106/255, 24/255, 79/255]) \
-        .setQuaternion(rowan.multiply(base_quat, rel_quat))
+        .setQuaternion(rowan.multiply(base_quat, rel_quat)) \
+        .setContact(1)
+
+
+
 
     bbk = BlackBoxKomoProblem(C, komo_text, targets=True, verbose=3)
     
