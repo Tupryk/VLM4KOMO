@@ -1,43 +1,19 @@
-The following text defines abstract primitve functions, that are well defined already. You can use them for manipulating the robot arm as you like
+The following text defines abstract primitive functions which are well defined already. You can use them for manipulating the robot arm as you like
 
-plan_push_motion(object_name, target_position)
-- Generates a motion plan to push an object to a target position
+pick(object_name, yaw)
+- Generates a motion plan to pick an object to a target position
 - Parameters:
-  - object_name (str): The name of the object configuration to be pushed
-  - target_position (numpy.ndarray): The desired target position for the object
-- Returns:
-  - feasible (bool): Whether a feasible motion plan was found
-  - motion_paths (list): A list of motion paths that execute the pushing motion
+  - object_name (str): The name of the object to be picked
+  - yaw (float, optional): An optional parameter which defines the relative yaw angle of the robots end-effector to perform the pick
 
-plan_pick_and_place(object_name, table_name, target_position, target_orientation)
-- Generates a motion plan to pick up an object and place it at a target position and orientation on a table
+place(target, z_offset)
+- Generates a place motion of the robots object in hand
 - Parameters: 
-  - object_name (str): The name of the object to be picked up
-  - table_name (str): The name of the table to place the object on
-  - target_position (numpy.ndarray): The desired target position to place the object
-  - target_orientation (numpy.ndarray): The desired target orientation to place the object
-- Returns:
-  - feasible (bool): Whether a feasible motion plan was found
-  - pick_motion_paths (list): A list of motion paths that execute the picking up of the object
-  - place_motion_paths (list): A list of motion paths that execute the placing of the object
+  - target_position (list): The desired target position to place the object
+  - z_offset (float, optional): An optional z offset to place on an elevated surface with respect to the table
 
-plan_grasp(object_name, grasp_frame, grasp_direction)
+push(object_name, target_position)
 - Generates a motion plan to grasp an object at a specific frame and approach direction
 - Parameters:
   - object_name (str): The name of the object to be grasped
-  - grasp_frame (str): The name of the grasp frame on the robot
-  - grasp_direction (numpy.ndarray): The approach direction for the grasp
-- Returns: 
-  - feasible (bool): Whether a feasible motion plan was found
-  - grasp_motion_path (list): The planned grasping motion path
-
-plan_place(object_name, table_name, target_position, target_orientation)
-- Generates a motion plan to place an object on a table at a specific position and orientation
-- Parameters:
-  - object_name (str): The name of the object to be placed
-  - table_name (str): The name of the table to place the object on
-  - target_position (numpy.ndarray): The target position to place the object on the table
-  - target_orientation (numpy.ndarray): The target orientation to place the object on the table
-- Returns:
-  - feasible (bool): Whether a feasible motion plan was found
-  - place_motion_path (list): The planned placing motion path
+  - target_position (list): The target x and y position of the push as a list  
