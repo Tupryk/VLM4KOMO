@@ -32,13 +32,14 @@ class RobotEnviroment:
         M2.no_collisions([.3,.7], [palm, box], margin=.05)
         M2.retract([.0, .2], gripper)
         M2.approach([.8, 1.], gripper)
-        M2.solve()
+        self.path = M2.solve()
         if not M2.feasible:
             return False
 
-        M2.play(C)
+        if self.visuals:
+            M2.play(self.C)
+            self.C.attach(gripper, frame)
         self.grabbed_frame = frame
-        self.C.attach(gripper, frame)
         return True
 
     def place(self, x: float, y: float, z: float=.69) -> bool:
@@ -59,12 +60,13 @@ class RobotEnviroment:
 
         M3 = M.sub_motion(0)
         M3.no_collisions([], [table, box])
-        M3.solve()
+        self.path = M3.solve()
         if not M3.ret.feasible:
             return False
 
-        M3.play(C)
-        C.attach(table, box)
+        if self.visuals:
+            M3.play(self.C)
+            self.C.attach(table, box)
         self.grabbed_frame = ""
         return True
 
@@ -92,20 +94,23 @@ class RobotEnviroment:
         M1.no_collisions([.15,.85], [obj, 'l_palm'], .02)
         M1.no_collisions([], [table, 'l_finger1'], .0)
         M1.no_collisions([], [table, 'l_finger2'], .0)
-        M1.solve()
+        path1 = M1.solve()
         if not M1.ret.feasible:
             return False
 
         M2 = M.sub_motion(1, accumulated_collisions=False)
         M2.komo.addObjective([], ry.FS.positionRel, [gripper, pushStart], ry.OT.eq, 1e1*np.array([[1,0,0],[0,0,1]]))
-        M2.solve()
+        path2 = M2.solve()
         if not M2.ret.feasible:
             return False
 
-        M1.play(C, 1.)
-        C.attach(gripper, obj)
-        M2.play(C, 1.)
-        C.attach(table, obj)
+        if self.visuals:
+            M1.play(self.C, 1.)
+            self.C.attach(gripper, obj)
+            M2.play(self.C, 1.)
+            self.C.attach(table, obj)
+
+        self.path = np.concatenate((path1, path2))
 
         return True
 
