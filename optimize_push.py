@@ -2,7 +2,7 @@ import ast
 import numpy as np
 import robotic as ry
 import cma
-from blackBoxKomoProblemNew import BlackBoxKomoProblem
+from blackBoxKomoProblem import BlackBoxKomoProblem
 import rowan
 
 def str_to_np_array(text: str) -> np.ndarray:
