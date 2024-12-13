@@ -13,7 +13,7 @@ class BlackBoxAbstractProblem:
     def __init__(self,
                  C: ry.Config,
                  text: str,
-                 features_to_be_optimized: list=["push"],
+                 features_to_be_optimized: list=["place"],
                  verbose = 0
                  ):
         
@@ -164,9 +164,10 @@ class BlackBoxAbstractProblem:
 
 if __name__ == "__main__":
     komo_text = """
-push(box, .05, .05)
+pick(box)
+place(.1, .1)
 """
-
+#push(box, [.05, .05])
 
     C = ry.Config()
     C.addFile(ry.raiPath('scenarios/pandaSingle.g'))

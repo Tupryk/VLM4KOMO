@@ -2,30 +2,30 @@ import robotic as ry
 import numpy as np
 import time
 from robotic import SimulationEngine
+import re
+import ast
 
-C = ry.Config()
-C.addFile(ry.raiPath("./scenarios/pandaSingle.g"))
+line = 'place(4,   1.23)'
 
-midpoint = np.array([-0.105, 0.2, 0.745])
+objectives=[]
 
-C.addFrame("target") \
-    .setPosition(midpoint+np.array([-.22,.2,0])) \
-    .setShape(ry.ST.box, size=[0.21, .36, .15]) \
-    .setColor([28/255, 18/255, 210/255, .3]) \
+if line.startswith("place"):
+    match = re.match(r'\s*place\s*\(\s*(.+?)\s*,\s*(.+?)\s*(?:,\s*(.+?))?\s*\)\s*', line)
 
-def sample_rectangular_arena(width=0.4, height=0.4, z_coord=0.745, center_point=[0, 0]):
-    x = center_point[0] + np.random.uniform(-width / 2, width / 2)
-    y = center_point[1] + np.random.uniform(-height / 2, height / 2)
-    return [x, y, z_coord]
+    if match:
+        x = ast.literal_eval(match.group(1).strip())
+        y = ast.literal_eval(match.group(2).strip())
 
-midpoint = sample_rectangular_arena(width=.68, height=.6, center_point=[.19, .32])
+        # Handle the optional z parameter
+        z = ast.literal_eval(match.group(3).strip()) if match.group(3) else 0.0
 
-base_quat = [-1/np.sqrt(2), 1/np.sqrt(2), 0 ,0 ]
-rel_quat = rowan.from_axis_angle([0,1,0], np.random.uniform(0, 2*np.pi))
+        objective_dict = {"feature": "place", "target": [x,y], "z": z}
+        objectives.append(objective_dict)
 
-C.addFrame("blob") \
-    .setPosition(midpoint) \
-    .setShape(ry.ST.capsule, size=[.08, .07]) \
-    .setColor([106/255, 24/255, 79/255]) \
-    .setQuaternion(rowan.multiply(base_quat, rel_quat)) \
-    .setContact(1)
+    else:
+        raise ValueError("String format does not match.")
+
+
+
+
+print(objectives)

@@ -74,7 +74,7 @@ class Simulator:
             self._sim.step([], tau, ry.ControlMode.spline)
             xs[i], qs[i], xdots[i], qdots[i] = self._sim.getState()
             if real_time:
-                time.sleep(1e-2)
+                time.sleep(1e-3)
                 self.config.view()
         # Reset simulation and environments
         self.reset()
