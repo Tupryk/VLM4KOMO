@@ -1,35 +1,66 @@
 import numpy as np
 import robotic as ry
-from time import sleep
 
+from utils import generate_blocks_scene
 import Robotic_Manipulation.manipulation as manip
 
 
+class RAIVec:
+    def __init__(self, x: float, y: float, z: float):
+        self.x = x
+        self.y = y
+        self.z = z
+
+
+class RAIObj:
+    def __init__(self, C: ry.Config, name: str):
+        self.C = C
+        self.name = name
+
+    @property
+    def pos(self) -> RAIVec:
+        nums = self.C.getFrame(self.name).getPosition()
+        vec = RAIVec(*nums)
+        return vec
+    
+    @property
+    def size(self) -> RAIVec:
+        nums = self.C.getFrame(self.name).getSize()[:3]
+        vec = RAIVec(*nums)
+        return vec
+
+
 class RobotEnviroment:
-    def __init__(self, C: ry.Config, visuals: bool=False, verbose: int=0):
+    def __init__(self,
+                 C: ry.Config,
+                 visuals: bool=False,
+                 verbose: int=0,
+                 compute_collisions: bool=True):
         self.C = C
         self.visuals = visuals
         self.verbose = verbose
         self.grabbed_frame = ""
         self.path = np.array([])
+        self.compute_collisions = compute_collisions
 
     def pick(self, frame: str) -> bool:
+        assert self.grabbed_frame == ""
 
         graspDirection = np.random.choice(['x', 'y'])
         gripper = "l_gripper"
         table = "table"
         palm = "l_palm"
-        box = frame
+
         M = manip.ManipulationModelling()
-        M.setup_sequence(self.C, 1)
-        M.grasp_box(1., gripper, box, palm, graspDirection)
+        M.setup_sequence(self.C, 1, accumulated_collisions=self.compute_collisions)
+        M.grasp_box(1., gripper, frame, palm, graspDirection)
         M.no_collisions([], [palm, table])
-        ways = M.solve()
+        M.solve()
         if not M.feasible:
             return False
 
-        M2 = M.sub_motion(0)
-        M2.no_collisions([.3,.7], [palm, box], margin=.05)
+        M2 = M.sub_motion(0, accumulated_collisions=self.compute_collisions)
+        M2.no_collisions([.3,.7], [palm, frame], margin=.05)
         M2.retract([.0, .2], gripper)
         M2.approach([.8, 1.], gripper)
         self.path = M2.solve()
@@ -42,31 +73,36 @@ class RobotEnviroment:
         self.grabbed_frame = frame
         return True
 
-    def place(self, x: float, y: float, z: float=.69) -> bool:
+    def place(self, x: float, y: float, z: float=.0) -> bool:
         assert self.grabbed_frame != ""
-        placeDirection = np.random.choice(['x', 'y', 'z', 'xNeg', 'yNeg', 'zNeg'])
+
+        placeDirection = 'z'
         table = "table"
         palm = "l_palm"
 
-        box = self.grabbed_frame
         M = manip.ManipulationModelling()
-        M.setup_sequence(self.C, 1)
-        M.place_box(1., box, table, palm, placeDirection)
-        M.no_collisions([], [palm, table])
-        M.target_relative_xy_position(1., box, table, [x, y])
-        ways = M.solve()
+        M.setup_sequence(self.C, 1, accumulated_collisions=self.compute_collisions)
+        if not z:
+            M.place_box(1., self.grabbed_frame, table, palm, placeDirection)
+            M.no_collisions([], [palm, table])
+            M.target_relative_xy_position(1., self.grabbed_frame, table, [x, y])
+        else:
+            M.target_position(1., self.grabbed_frame, [x, y, z])
+            M.target_z_orientation(1., self.grabbed_frame, [0., 0., 1.])
+
+        M.solve()
         if not M.feasible:
             return False
 
-        M3 = M.sub_motion(0)
-        M3.no_collisions([], [table, box])
+        M3 = M.sub_motion(0, accumulated_collisions=self.compute_collisions)
+        M3.no_collisions([], [table, self.grabbed_frame])
         self.path = M3.solve()
         if not M3.ret.feasible:
             return False
 
         if self.visuals:
             M3.play(self.C)
-            self.C.attach(table, box)
+            self.C.attach(table, self.grabbed_frame)
         self.grabbed_frame = ""
         return True
 
@@ -77,11 +113,11 @@ class RobotEnviroment:
         
         gripper = "l_gripper"
         table = "table"
-        obj = frame
+        
         M = manip.ManipulationModelling()
-        M.setup_pick_and_place_waypoints(self.C, gripper, obj, 1e-1, accumulated_collisions=False)
-        pushStart = M.straight_push([1.,2.], obj, gripper, table)
-        M.komo.addObjective([2.], ry.FS.position, [obj], ry.OT.eq, 1e1*np.array([[1,0,0],[0,1,0]]), target_pos)
+        M.setup_pick_and_place_waypoints(self.C, gripper, frame, 1e-1, accumulated_collisions=False)
+        pushStart = M.straight_push([1.,2.], frame, gripper, table)
+        M.target_xy_position(2., frame, target_pos)
         M.solve()
         if not M.ret.feasible:
             return False
@@ -89,9 +125,9 @@ class RobotEnviroment:
         M1 = M.sub_motion(0, accumulated_collisions=False)
         M1.retractPush([.0, .15], gripper, .03)
         M1.approachPush([.85, 1.], gripper, .03)
-        M1.no_collisions([.15,.85], [obj, 'l_finger1'], .02)
-        M1.no_collisions([.15,.85], [obj, 'l_finger2'], .02)
-        M1.no_collisions([.15,.85], [obj, 'l_palm'], .02)
+        M1.no_collisions([.15,.85], [frame, 'l_finger1'], .02)
+        M1.no_collisions([.15,.85], [frame, 'l_finger2'], .02)
+        M1.no_collisions([.15,.85], [frame, 'l_palm'], .02)
         M1.no_collisions([], [table, 'l_finger1'], .0)
         M1.no_collisions([], [table, 'l_finger2'], .0)
         path1 = M1.solve()
@@ -106,38 +142,34 @@ class RobotEnviroment:
 
         if self.visuals:
             M1.play(self.C, 1.)
-            self.C.attach(gripper, obj)
+            self.C.attach(gripper, frame)
             M2.play(self.C, 1.)
-            self.C.attach(table, obj)
+            self.C.attach(table, frame)
 
         self.path = np.concatenate((path1, path2))
 
         return True
+    
+    def getObj(self, object_name: str) -> RAIObj:
+        obj = RAIObj(self.C, object_name)
+        return obj
 
 
 if __name__ == "__main__":
 
     ### Create Enviroment ###
-    C = ry.Config()
-    C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
-    C.addFrame("box") \
-        .setPosition([.3, 0.05, 0.72]) \
-        .setShape(ry.ST.ssBox, size=[0.04, 0.04, 0.04, 0.001]) \
-        .setColor([1., 0., 0.]) \
-        .setContact(1) \
-        .setMass(.1)
-    C.view()
+    C = generate_blocks_scene()
 
-    env = RobotEnviroment(C, visuals=True, verbose=1)
+    env = RobotEnviroment(C, visuals=True, verbose=1, compute_collisions=False)
 
 
     ### Test High Level Functions ###
-    env.pick("box")
+    # env.pick("block_red")
 
-    x = np.random.uniform(-.1, .1) - .105
-    y = np.random.uniform(-.1, .1) + .4
-    env.place(x, y)
+    # x = np.random.uniform(-.1, .1) - .105
+    # y = np.random.uniform(-.1, .1) + .4
+    # env.place(x, y)
 
-    relative_x = np.random.uniform(-.1, .1) - .105
-    relative_y = np.random.uniform(-.1, .1) + .4
-    env.push("box", relative_x, relative_y)
+    relative_x = np.random.uniform(-.05, .05) - .105
+    relative_y = np.random.uniform(-.05, .05) + .4
+    env.push("block_red", relative_x, relative_y)
