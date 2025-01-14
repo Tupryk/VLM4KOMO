@@ -63,6 +63,50 @@ def generate_blocks_scene() -> ry.Config:
     
     return C
 
+def generate_demo_scene() -> ry.Config:
+
+    valid = False
+    colors = ["red", "green"]
+
+    while not valid:
+    
+        C = ry.Config()
+        C.addFile(ry.raiPath("./scenarios/push_blob.g"))
+
+        for i in range(3):
+
+            midpoint = sample_rectangular_arena(width=.68, height=.6, center_point=[.19, .32])
+            color = [0., 0., 0.]
+            color[i] = 1.
+
+            rand_z = np.random.uniform(0., np.pi*2.)
+            rot = rowan.from_euler(rand_z, 0, 0)
+            
+            if i == 2:
+                C.addFrame("goal_area") \
+                    .setShape(ry.ST.ssBox, size=[.06, .06, .001, .001]) \
+                    .setPosition(midpoint) \
+                    .setColor([0., 0., 1]) \
+                    .setContact(1)
+                
+            else:
+                C.addFrame(f"block_{colors[i]}") \
+                    .setShape(ry.ST.ssBox, size=[.06, .06, .06, .001]) \
+                    .setPosition(midpoint) \
+                    .setQuaternion(rot) \
+                    .setColor(color) \
+                    .setContact(1)
+            
+
+            
+
+        col = C.eval(ry.FS.accumulatedCollisions, [])[0][0]
+        valid = col <= 0
+
+
+
+    return C
+
 
 def grasping_within_komo_definition(komo_definition: str) -> list[float]:
 
