@@ -1,19 +1,21 @@
-The following text defines abstract primitive functions which are well defined already. You can use them for manipulating the robot arm as you like
-
-pick(object_name, yaw)
-- Generates a motion plan to pick an object to a target position
+The following text defines abstract primitive functions which are well defined already. You can use them for manip ulating the robot arm as you like.
+pick(object_name)
+- Generates a pick motion of an object
 - Parameters:
-  - object_name (str): The name of the object to be picked
-  - yaw (float, optional): An optional parameter which defines the relative yaw angle of the robots end-effector to perform the pick
-
-place(target, z_offset)
-- Generates a place motion of the robots object in hand
-- Parameters: 
-  - target_position (list): The desired target position to place the object
-  - z_offset (float, optional): An optional z offset to place on an elevated surface with respect to the table
-
-push(object_name, target_position)
-- Generates a motion plan to grasp an object at a specific frame and approach direction
+- object_name (str): The name of the object to be picked
+place(x, y, z)
+- Generates a place motion of the robots object in hand, this means that a pick is first necessary
 - Parameters:
-  - object_name (str): The name of the object to be grasped
-  - target_position (list): The target x and y position of the push as a list  
+- x (float): The absolute x target position to place the object
+- y (float): The absolute y target position to place the object
+- z (float): The absolute z target position to place the object
+push(object_name, x_rel, y_rel)
+- Generates a push motion of a specific object into a direction
+- Parameters:
+- object_name (str): The name of the object to be pushed
+- x_rel (float): the relative x coordinate of the push
+- y_rel (float): the relative y coordinate of the push
+- Returns an object from which the following parameters can be queried: pos.X, pos.y, pos.Z, size-X, size.y, siz
+e. z
+- Parameters:
+- object_name (str): The name of the object to be pushed
