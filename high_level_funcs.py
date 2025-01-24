@@ -4,6 +4,7 @@ import robotic as ry
 from utils import generate_blocks_scene
 import Robotic_Manipulation.manipulation as manip
 
+from simulator import Simulator
 
 class RAIVec:
     def __init__(self, x: float, y: float, z: float):
@@ -25,28 +26,9 @@ class RAIObj:
     
     @property
     def size(self) -> RAIVec:
-        real_size = self.C.getFrame(self.name).getSize()[:3]
-
-        rel_size = RAIVec(0, 0, 0)
-        # Height
-        rel_size.z = np.argmax([
-            np.abs(self.C.eval(ry.FS.scalarProductXZ, [self.name, "table"])[0][0]),
-            np.abs(self.C.eval(ry.FS.scalarProductYZ, [self.name, "table"])[0][0]),
-            np.abs(self.C.eval(ry.FS.scalarProductZZ, [self.name, "table"])[0][0])
-            ])
-        # Height
-        rel_size.z = np.argmax([
-            np.abs(self.C.eval(ry.FS.scalarProductXZ, [self.name, "table"])[0][0]),
-            np.abs(self.C.eval(ry.FS.scalarProductYZ, [self.name, "table"])[0][0]),
-            np.abs(self.C.eval(ry.FS.scalarProductZZ, [self.name, "table"])[0][0])
-            ])
-        # Height
-        rel_size.z = np.argmax([
-            np.abs(self.C.eval(ry.FS.scalarProductXZ, [self.name, "table"])[0][0]),
-            np.abs(self.C.eval(ry.FS.scalarProductYZ, [self.name, "table"])[0][0]),
-            np.abs(self.C.eval(ry.FS.scalarProductZZ, [self.name, "table"])[0][0])
-            ])
-        return RAIVec(*real_size)
+        nums = self.C.getFrame(self.name).getSize()[:3]
+        vec = RAIVec(*nums)
+        return vec
 
 
 class RobotEnviroment:
@@ -89,41 +71,33 @@ class RobotEnviroment:
         if self.visuals:
             M2.play(self.C)
             self.C.attach(gripper, frame)
+        else:
+            C2 = ry.Config()
+            C2.addConfigurationCopy(self.C)
+            sim = Simulator(C2)
+            xs, qs, xdots, qdots = sim.run_trajectory(self.path, 2, real_time=True)
+            
+            #self.C.setJointState(qs)
+
         self.grabbed_frame = frame
         return True
 
-    def place(self, x: float, y: float, z: float=.0, up_vec: str="z", yaw: float=None) -> bool:
+    def place(self, x: float, y: float, z: float=.0) -> bool:
         assert self.grabbed_frame != ""
 
+        placeDirection = 'z'
         table = "table"
         palm = "l_palm"
-        table_frame = self.C.getFrame("table")
 
         M = manip.ManipulationModelling()
         M.setup_sequence(self.C, 1, accumulated_collisions=self.compute_collisions)
-        
         if not z:
-            M.place_box(1., self.grabbed_frame, table, palm, up_vec)
+            M.place_box(1., self.grabbed_frame, table, palm, placeDirection)
             M.no_collisions([], [palm, table])
             M.target_relative_xy_position(1., self.grabbed_frame, table, [x, y])
         else:
-            z += table_frame.getPosition()[2] + table_frame.getSize()[2]*.5
-            M.place_box(1., self.grabbed_frame, table, palm, up_vec, on_table=False)
             M.target_position(1., self.grabbed_frame, [x, y, z])
-
-        if yaw != None:
-            yaw = np.deg2rad(yaw)
-            scalar_prod = np.cos(yaw)
-            if up_vec == "x":
-                feature = ry.FS.scalarProductXZ
-            elif up_vec == "y":
-                feature = ry.FS.scalarProductXZ
-            elif up_vec == "z":
-                feature = ry.FS.scalarProductXX
-            else:
-                raise Exception(f"'{up_vec}' is not a valid up vector for a place motion!")
-            
-            M.komo.addObjective([1.], feature, [table, self.grabbed_frame], ry.OT.eq, [1e1], scalar_prod)
+            M.target_z_orientation(1., self.grabbed_frame, [0., 0., 1.])
 
         M.solve()
         if not M.feasible:
@@ -154,6 +128,7 @@ class RobotEnviroment:
         pushStart = M.straight_push([1.,2.], frame, gripper, table)
         M.target_xy_position(2., frame, target_pos)
         M.solve()
+        
         if not M.ret.feasible:
             return False
 
@@ -185,6 +160,7 @@ class RobotEnviroment:
 
         return True
     
+
     def getObj(self, object_name: str) -> RAIObj:
         obj = RAIObj(self.C, object_name)
         return obj

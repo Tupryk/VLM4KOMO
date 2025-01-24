@@ -13,7 +13,7 @@ class BlackBoxAbstractProblem:
     def __init__(self,
                  C: ry.Config,
                  text: str,
-                 features_to_be_optimized: list=["push"],
+                 features_to_be_optimized: list=["place"],
                  verbose = 0
                  ):
         
@@ -52,7 +52,7 @@ class BlackBoxAbstractProblem:
                     if angle is not None:
                         angle = float(angle.strip())  # Convert to float if present
 
-                    objective_dict={"feature":"pick", "frame":frame, "yaw":angle}
+                    objective_dict={"feature":"pick", "frame":frame}
                     self.objectives.append(objective_dict)
                 else:
                     raise ValueError(f"String format does not match: {line}")
@@ -65,7 +65,7 @@ class BlackBoxAbstractProblem:
                     y = ast.literal_eval(match.group(2).strip())
 
                     # Handle the optional z parameter
-                    z = ast.literal_eval(match.group(3).strip()) if match.group(3) else .69
+                    z = ast.literal_eval(match.group(3).strip()) if match.group(3) else .0
 
                     objective_dict = {"feature": "place", "target": [x,y], "z": z}
                     self.objectives.append(objective_dict)
@@ -87,31 +87,7 @@ class BlackBoxAbstractProblem:
 
 
     def build_abstract(self, C: ry.Config) -> ry.KOMO:
-<<<<<<< HEAD
         Motion = RobotEnviroment(C, visuals=False, verbose=1)
-
-        for obj in self.objectives:
-            if obj["feature"] == "pick":
-                Motion.pick(obj["frame"])
-            elif obj["feature"] == "place":
-                Motion.place(x=obj["target"][0], y=obj["target"][1], z=obj["z"])
-            elif obj["feature"] == "push":
-                Motion.push(obj["frame"], relative_x=obj["target"][0], relative_y=obj["target"][1])
-        
-        return Motion.path
-
-    def run_high_level(self) -> np.ndarray:
-        
-        C2 = ry.Config()
-        C2.addConfigurationCopy(self.C)
-        
-        path = self.build_abstract(C2)
-
-        sim = Simulator(C2)
-        xs, qs, xdots, qdots = sim.run_trajectory(path, 2, real_time=True)
-
-=======
-        Motion = RobotEnviroment(C, visuals=True, verbose=1)
 
         for obj in self.objectives:
             if obj["feature"] == "pick":
@@ -133,7 +109,6 @@ class BlackBoxAbstractProblem:
         # sim = Simulator(C2)
         # xs, qs, xdots, qdots = sim.run_trajectory(path, 2, real_time=True)
 
->>>>>>> 59c772b91f2c1a92225ea11b427bb6d45826cfb4
         observation = self.get_cost(C2)
         del C2
         print(observation)
@@ -189,30 +164,28 @@ class BlackBoxAbstractProblem:
 
 if __name__ == "__main__":
     komo_text = """
-push(box, .05, .05)
+pick("box")
+place(.1, .4, 0)
+
 """
 
 
     C = ry.Config()
     C.addFile(ry.raiPath('scenarios/pandaSingle.g'))
     C.addFrame('refTarget'). setShape(ry.ST.marker, [.2]) .setPosition([.3, .3, .69])
-<<<<<<< HEAD
-=======
-    #C.addFrame('lol'). setShape(ry.ST.marker, [.2]) .setPosition([.1, .1, .69])
->>>>>>> 59c772b91f2c1a92225ea11b427bb6d45826cfb4
 
     C.addFrame("box") \
-        .setPosition([.3, 0.05, 0.72]) \
-        .setShape(ry.ST.ssBox, size=[0.04, 0.04, 0.04, 0.001]) \
+        .setPosition([.2, 0.3, 0.72]) \
+        .setShape(ry.ST.ssBox, size=[0.05, 0.05, 0.05, 0.001]) \
         .setColor([1., 0., 0.]) \
         .setContact(1) \
         .setMass(.1)
     C.view()
 
     bbk = BlackBoxAbstractProblem(C, komo_text, verbose=3)
-    print(bbk.objectives)
+    print("objective:", bbk.objectives)
     action, observation = bbk.reset()
-    print(action)
+    print("action:", action)
     #bbk.step(action)
     options = {
     'popsize': 7,
@@ -221,6 +194,5 @@ push(box, .05, .05)
     'tolfun': 1e-4,
     'tolx': 1e-5
     }
-
     result = cma.fmin(bbk.step, action, sigma0=.1, options=options)
     
