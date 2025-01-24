@@ -1,9 +1,7 @@
-Given the image, how would you formulate an optimization problem using KOMO.
-Just write the code, skip any extra info.
-Skip all imports and extra stuff like loading the model, just describe the komo setup.
-Don't forget to specify the phases and joint limit constraints as well as collision contraints.
-Don't forget the initialize the KOMO problem correctly, specfying the phases and slices between phases.
-You can asssume a configuration has already been defined.
-Always set the keyOrder to 2.
-Don't define any extra coordinates or frames, all necessary frames are already defined.
-It should solve the following problem: 
+Given the robotic primitive functions and the scene image, write a python function to solve the problem that will be defined later on.
+The scenes image horizontal axes is parallel to the robots x axis. The vertical image axis is parallel to the y axis. The up direction is in z. Think about which x, y and z values to use.
+Do not write any literal numbers if possible, all inputs to the primitive functions should be object parameters from the returned object in the getObject function and scalings of these values.
+If a literal number is really needed write it as _FLOAT_.
+The position of an object is with respect to center of it's mesh.
+Don't forget to pick before you place! Reason about your answer. Be careful to follow the correct usage of the functions as descried earlier.
+It should solve the following problem:  

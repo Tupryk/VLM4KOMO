@@ -25,9 +25,28 @@ class RAIObj:
     
     @property
     def size(self) -> RAIVec:
-        nums = self.C.getFrame(self.name).getSize()[:3]
-        vec = RAIVec(*nums)
-        return vec
+        real_size = self.C.getFrame(self.name).getSize()[:3]
+
+        rel_size = RAIVec(0, 0, 0)
+        # Height
+        rel_size.z = np.argmax([
+            np.abs(self.C.eval(ry.FS.scalarProductXZ, [self.name, "table"])[0][0]),
+            np.abs(self.C.eval(ry.FS.scalarProductYZ, [self.name, "table"])[0][0]),
+            np.abs(self.C.eval(ry.FS.scalarProductZZ, [self.name, "table"])[0][0])
+            ])
+        # Height
+        rel_size.z = np.argmax([
+            np.abs(self.C.eval(ry.FS.scalarProductXZ, [self.name, "table"])[0][0]),
+            np.abs(self.C.eval(ry.FS.scalarProductYZ, [self.name, "table"])[0][0]),
+            np.abs(self.C.eval(ry.FS.scalarProductZZ, [self.name, "table"])[0][0])
+            ])
+        # Height
+        rel_size.z = np.argmax([
+            np.abs(self.C.eval(ry.FS.scalarProductXZ, [self.name, "table"])[0][0]),
+            np.abs(self.C.eval(ry.FS.scalarProductYZ, [self.name, "table"])[0][0]),
+            np.abs(self.C.eval(ry.FS.scalarProductZZ, [self.name, "table"])[0][0])
+            ])
+        return RAIVec(*real_size)
 
 
 class RobotEnviroment:
@@ -73,22 +92,38 @@ class RobotEnviroment:
         self.grabbed_frame = frame
         return True
 
-    def place(self, x: float, y: float, z: float=.0) -> bool:
+    def place(self, x: float, y: float, z: float=.0, up_vec: str="z", yaw: float=None) -> bool:
         assert self.grabbed_frame != ""
 
-        placeDirection = 'z'
         table = "table"
         palm = "l_palm"
+        table_frame = self.C.getFrame("table")
 
         M = manip.ManipulationModelling()
         M.setup_sequence(self.C, 1, accumulated_collisions=self.compute_collisions)
+        
         if not z:
-            M.place_box(1., self.grabbed_frame, table, palm, placeDirection)
+            M.place_box(1., self.grabbed_frame, table, palm, up_vec)
             M.no_collisions([], [palm, table])
             M.target_relative_xy_position(1., self.grabbed_frame, table, [x, y])
         else:
+            z += table_frame.getPosition()[2] + table_frame.getSize()[2]*.5
+            M.place_box(1., self.grabbed_frame, table, palm, up_vec, on_table=False)
             M.target_position(1., self.grabbed_frame, [x, y, z])
-            M.target_z_orientation(1., self.grabbed_frame, [0., 0., 1.])
+
+        if yaw != None:
+            yaw = np.deg2rad(yaw)
+            scalar_prod = np.cos(yaw)
+            if up_vec == "x":
+                feature = ry.FS.scalarProductXZ
+            elif up_vec == "y":
+                feature = ry.FS.scalarProductXZ
+            elif up_vec == "z":
+                feature = ry.FS.scalarProductXX
+            else:
+                raise Exception(f"'{up_vec}' is not a valid up vector for a place motion!")
+            
+            M.komo.addObjective([1.], feature, [table, self.grabbed_frame], ry.OT.eq, [1e1], scalar_prod)
 
         M.solve()
         if not M.feasible:
