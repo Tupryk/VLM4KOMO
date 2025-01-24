@@ -87,6 +87,30 @@ class BlackBoxAbstractProblem:
 
 
     def build_abstract(self, C: ry.Config) -> ry.KOMO:
+<<<<<<< HEAD
+        Motion = RobotEnviroment(C, visuals=False, verbose=1)
+
+        for obj in self.objectives:
+            if obj["feature"] == "pick":
+                Motion.pick(obj["frame"])
+            elif obj["feature"] == "place":
+                Motion.place(x=obj["target"][0], y=obj["target"][1], z=obj["z"])
+            elif obj["feature"] == "push":
+                Motion.push(obj["frame"], relative_x=obj["target"][0], relative_y=obj["target"][1])
+        
+        return Motion.path
+
+    def run_high_level(self) -> np.ndarray:
+        
+        C2 = ry.Config()
+        C2.addConfigurationCopy(self.C)
+        
+        path = self.build_abstract(C2)
+
+        sim = Simulator(C2)
+        xs, qs, xdots, qdots = sim.run_trajectory(path, 2, real_time=True)
+
+=======
         Motion = RobotEnviroment(C, visuals=True, verbose=1)
 
         for obj in self.objectives:
@@ -109,6 +133,7 @@ class BlackBoxAbstractProblem:
         # sim = Simulator(C2)
         # xs, qs, xdots, qdots = sim.run_trajectory(path, 2, real_time=True)
 
+>>>>>>> 59c772b91f2c1a92225ea11b427bb6d45826cfb4
         observation = self.get_cost(C2)
         del C2
         print(observation)
@@ -171,7 +196,10 @@ push(box, .05, .05)
     C = ry.Config()
     C.addFile(ry.raiPath('scenarios/pandaSingle.g'))
     C.addFrame('refTarget'). setShape(ry.ST.marker, [.2]) .setPosition([.3, .3, .69])
+<<<<<<< HEAD
+=======
     #C.addFrame('lol'). setShape(ry.ST.marker, [.2]) .setPosition([.1, .1, .69])
+>>>>>>> 59c772b91f2c1a92225ea11b427bb6d45826cfb4
 
     C.addFrame("box") \
         .setPosition([.3, 0.05, 0.72]) \

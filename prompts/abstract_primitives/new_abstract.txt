@@ -22,5 +22,5 @@ push(object_name: str, relative_x: float, relative_y: float)
   - relative_y (float): The relative target position on the y axis.
 
 getObj(object_name: str)
-- Returns an object from which you can query the following parameters: pos.x, pos.y, pos.z, size.x, size.y, size.z
+- Returns an object from which you can query the following parameters: pos.x, pos.y, pos.z, size.width, size.depth, size.height. The size parameters are relative to the world frame. Where the x axis is width, y is depth and z is height.
   - object_name (str): The frame name of the object to be queried.

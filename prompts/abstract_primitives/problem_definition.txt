@@ -1,4 +1,6 @@
-Given the image, how would you write the code, given the external functions for solving the path planning problem.
-Just write the code, skip any extra info.
-Don't define any extra coordinates or frames, all necessary frames are already defined.
-It should solve the following problem: 
+Given the robotic primitive functions and the scene image, write a python function to solve the problem that will be defined later on.
+The scenes image horizontal axes is parallel to the robots x axis. The vertical image axis is parallel to the y ax is. Think about which x and y values to use.
+Do not write any literal numbers if possible, all inputs to the primitive functions should be object parameters fr om the returned object in the getObject function and scalings of these values.
+Don't forget that to pick before you place! Explain your answer. Be careful to follow the correct usage of the fun ctions as descried earlier.
+It should solve the following problem:
+push the red block towards the blue block and then place the green block on the red block Here is a list of all available object names: 
