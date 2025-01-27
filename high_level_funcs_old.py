@@ -1,4 +1,3 @@
-import time
 import numpy as np
 import robotic as ry
 
@@ -64,68 +63,79 @@ class RobotEnviroment:
         self.visuals = visuals
         self.verbose = verbose
         self.grabbed_frame = ""
+        self.grasp_direction = ""
         self.path = np.array([])
         self.compute_collisions = compute_collisions
 
     def pick(self, frame: str) -> bool:
         assert self.grabbed_frame == ""
 
+        graspDirections = ['x', 'y']
         gripper = "l_gripper"
+        palm = "l_palm"
 
-        komo = ry.KOMO(self.C, 1., 32, 0, self.compute_collisions)
-        komo.addControlObjective([], 0, 1e-2)
-        komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq, [1e0])
-        komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq, [1e0])
+        for gd in graspDirections:
 
-        komo.addObjective([1.], ry.FS.negDistance, [gripper, frame], ry.OT.ineq, [1e1], [.02])
+            M = manip.ManipulationModelling()
+            M.setup_sequence(self.C, 1, accumulated_collisions=self.compute_collisions)
+            M.grasp_box(1., gripper, frame, palm, gd)
+            M.solve()
+            if not M.feasible:
+                continue
 
-        sol = ry.NLP_Solver()
-        sol.setProblem(komo.nlp())
-        sol.setOptions(damping=1e-1, verbose=0, stopTolerance=1e-3, maxLambda=100., stopInners=20, stopEvals=200)
-        ret = sol.solve()
-        path = komo.getPath()
-        print(ret)
+            M2 = M.sub_motion(0, accumulated_collisions=self.compute_collisions)
+            M2.no_collisions([.3,.7], [palm, frame], margin=.05)
+            M2.retract([.0, .2], gripper)
+            M2.approach([.8, 1.], gripper)
+            self.path = M2.solve()
+            if not M2.feasible:
+                continue
 
-        if not ret.feasible:
-            return False
+            if self.visuals:
+                M2.play(self.C)
+                self.C.attach(gripper, frame)
+            else:
+                self.bot.move(self.path, [3.])
+                while self.bot.getTimeToEnd() > 0:
+                    self.bot.sync(self.C)
+                self.bot.gripperClose(ry._left)
+                while not self.bot.gripperDone(ry._left):
+                    self.bot.sync(self.C)
+                self.C.attach(gripper, frame)
 
-        if self.visuals:
-            for q in path:
-                time.sleep(.05)
-                self.C.setJointState(q)
-            self.C.attach(gripper, frame)
-        else:
-            self.bot.move(self.path, [3.])
-            while self.bot.getTimeToEnd() > 0:
-                self.bot.sync(self.C)
-            self.bot.gripperClose(ry._left)
-            while not self.bot.gripperDone(ry._left):
-                self.bot.sync(self.C)
-            self.C.attach(gripper, frame)
+            self.grabbed_frame = frame
+            self.grasp_direction = gd
+            return True
+    
+        return False
 
-        self.grabbed_frame = frame
-        return True
-
-    def place(self, x: float, y: float, z: float=.0, up_vec: str="z", yaw: float=None) -> bool:
+    def place(self, x: float, y: float, z: float=.0, rotated: bool=False) -> bool:
         assert self.grabbed_frame != ""
 
         table = "table"
         palm = "l_palm"
         table_frame = self.C.getFrame("table")
+        
+        if rotated and self.grasp_direction == 'x':
+            place_direction = 'y'
+        elif rotated and self.grasp_direction == 'y':
+            place_direction = 'x'
+        elif not rotated:
+            place_direction = 'z'
 
         M = manip.ManipulationModelling()
         M.setup_sequence(self.C, 1, accumulated_collisions=self.compute_collisions)
         
         if not z:
-            M.place_box(1., self.grabbed_frame, table, palm, up_vec)
+            M.place_box(1., self.grabbed_frame, table, palm, place_direction)
             M.no_collisions([], [palm, table])
             M.target_relative_xy_position(1., self.grabbed_frame, table, [x, y])
         else:
-            z += table_frame.getPosition()[2] + table_frame.getSize()[2]*.5
-            M.place_box(1., self.grabbed_frame, table, palm, up_vec, on_table=False)
+            table_offset = table_frame.getPosition()[2] + table_frame.getSize()[2]*.5
+            if z < table_offset:
+                z += table_offset
+            M.place_box(1., self.grabbed_frame, table, palm, place_direction, on_table=False)
             M.target_position(1., self.grabbed_frame, [x, y, z])
-            # M.keep_distance([0., .8], self.grabbed_frame, "block_red", margin=.02)
-            # M.keep_distance([0., .8], self.grabbed_frame, "block_green", margin=.02)
 
         # if yaw != None:
         #     yaw = np.deg2rad(yaw)
@@ -165,6 +175,7 @@ class RobotEnviroment:
             self.C.attach(table, self.grabbed_frame)
 
         self.grabbed_frame = ""
+        self.grasp_direction = ""
         return True
 
     def push(self, frame: str, relative_x: float, relative_y: float) -> bool:

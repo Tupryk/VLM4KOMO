@@ -1,7 +1,8 @@
 Given the robotic primitive functions and the scene image, write a python function to solve the problem that will be defined later on.
 The scenes image horizontal axes is parallel to the robots x axis. The vertical image axis is parallel to the y axis. The up direction is in z. Think about which x, y and z values to use.
 Do not write any literal numbers if possible, all inputs to the primitive functions should be object parameters from the returned object in the getObject function and scalings of these values.
-If a literal number is really needed write it as _FLOAT_.
-The position of an object is with respect to center of it's mesh.
-Don't forget to pick before you place! Reason about your answer. Be careful to follow the correct usage of the functions as descried earlier.
-It should solve the following problem:  
+If a literal number is really needed write it as _FLOAT_. Always add the __FLOAT__ placeholder for any relative positions between frames.
+THE POSITION OF AN OBJECT IS WITH RESPECT TO CENTER OF IT'S MESH.
+You can only pick on eobject at a time.
+Don't forget to pick before you place! Reason about your answer before writing the code. Be careful to follow the correct usage of the functions as descried earlier.
+It should solve the following problem: 

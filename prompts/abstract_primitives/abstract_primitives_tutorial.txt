@@ -5,14 +5,13 @@ pick(object_name: str)
 - Parameters:
   - object_name (str): The frame name of the object to be picked.
 
-place(x: float, y: float, z: float=.0, up_vec: str="z", yaw: float=None)
+place(x: float, y: float, z: float=.0, rotated: bool=False)
 - Generates a place motion of the robot's object in hand
 - Parameters:
   - x (float): Target position on the x axis.
   - y (float): Target position on the y axis.
   - z (float)(default: 0): Target position on the z axis, if 0 it will be on top of the table.
-  - up_vec (str)(default: z): The vector in coordinate frame of the object to be pointing upward in the world frame, that is the vector in the object frame to be parallel to the world frame z vector.
-  - yaw (float)(optional): The angle of rotation of the object with respect to it's up vector.
+  - rotated (str)(default: False): Boolean to indicate if the object should be rotated.
 
 push(object_name: str, relative_x: float, relative_y: float)
 - Generates a motion plan to push an object towards a relative position to the object
