@@ -94,14 +94,19 @@ class RobotEnviroment:
             if self.visuals:
                 M2.play(self.C)
                 self.C.attach(gripper, frame)
+            # elif self.use_botop:
+            #     self.bot.move(self.path, [3.])
+            #     while self.bot.getTimeToEnd() > 0:
+            #         self.bot.sync(self.C)
+            #     self.bot.gripperClose(ry._left)
+            #     while not self.bot.gripperDone(ry._left):
+            #         self.bot.sync(self.C)
+            #     self.C.attach(gripper, frame)
             else:
-                self.bot.move(self.path, [3.])
-                while self.bot.getTimeToEnd() > 0:
-                    self.bot.sync(self.C)
-                self.bot.gripperClose(ry._left)
-                while not self.bot.gripperDone(ry._left):
-                    self.bot.sync(self.C)
+                qt = self.path[-1]
+                self.C.setJointState(qt)
                 self.C.attach(gripper, frame)
+                self.C.view(True)
 
             self.grabbed_frame = frame
             self.grasp_direction = gd
@@ -128,7 +133,6 @@ class RobotEnviroment:
         
         if not z:
             M.place_box(1., self.grabbed_frame, table, palm, place_direction)
-            M.no_collisions([], [palm, table])
             M.target_relative_xy_position(1., self.grabbed_frame, table, [x, y])
         else:
             table_offset = table_frame.getPosition()[2] + table_frame.getSize()[2]*.5
@@ -166,12 +170,15 @@ class RobotEnviroment:
             M3.play(self.C)
             self.C.attach(table, self.grabbed_frame)
         else:
-            self.bot.move(self.path, [3.])
-            while self.bot.getTimeToEnd() > 0:
-                self.bot.sync(self.C)
-            self.bot.gripperMove(ry._left)
-            while not self.bot.gripperDone(ry._left):
-                self.bot.sync(self.C)
+            # self.bot.move(self.path, [3.])
+            # while self.bot.getTimeToEnd() > 0:
+            #     self.bot.sync(self.C)
+            # self.bot.gripperMove(ry._left)
+            # while not self.bot.gripperDone(ry._left):
+            #     self.bot.sync(self.C)
+            # self.C.attach(table, self.grabbed_frame)
+            qt = self.path[-1]
+            self.C.setJointState(qt)
             self.C.attach(table, self.grabbed_frame)
 
         self.grabbed_frame = ""
