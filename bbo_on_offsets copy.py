@@ -33,10 +33,10 @@ class LLM_OUT_BBO:
             # Write the string to the file
             file.write(filled_llm_output)
 
-        # print("Executing:\n", filled_llm_output)
+        print("Executing:\n", filled_llm_output)
         exec(filled_llm_output, globals(), locals())
         cost = self.cost_func(C_copy)
-        C_copy.view(True)
+        C_copy.view(False)
         
         del C_copy
         return cost
@@ -60,31 +60,45 @@ if __name__ == "__main__":
             .setColor(color) \
             .setContact(1) \
             .setMass(.1)
+        
+    raw_out = f"""def build_bridge():
+    # Get object properties
+    red_block = getObj('block_red')
+    green_block = getObj('block_green')
+    blue_block = getObj('block_blue')
 
-    raw_out = """def build_bridge():
-    # Get object parameters
-    red_block = getObj("block_red")
-    green_block = getObj("block_green")
-    blue_block = getObj("block_blue")
-    
-    # Determine positions for vertical support blocks
-    support_x_offset = blue_block.size.x / 2 + red_block.size.x / 2 + PLACEHOLDER_FLOAT
-    support1_x = blue_block.pos.x - support_x_offset
-    support2_x = blue_block.pos.x + support_x_offset
-    support_y = blue_block.pos.y + PLACEHOLDER_FLOAT
-    support_z = red_block.size.z / 2  # Place directly on the table
-    
-    # Place vertical support blocks
-    pick("block_red")
-    place(support1_x, support_y, support_z)
-    
-    pick("block_green")
-    place(support2_x, support_y, support_z)
-    
-    # Place horizontal block on top
-    bridge_z = support_z + red_block.size.z / 2 + blue_block.size.z / 2 + PLACEHOLDER_FLOAT
-    pick("block_blue")
-    place(blue_block.pos.x, support_y, bridge_z, rotated=True, yaw=PLACEHOLDER_FLOAT)
+    # Determine the blocks to use as vertical supports and the horizontal block
+    vertical_block1 = red_block
+    vertical_block2 = green_block
+    horizontal_block = blue_block
+
+    # Calculate the distance for the vertical blocks
+    vertical_spacing = horizontal_block.size.x + PLACEHOLDER_FLOAT  # Add a small buffer (_FLOAT_)
+
+    # Calculate positions for the vertical blocks
+    vertical1_x = vertical_block1.pos.x
+    vertical1_y = vertical_block1.pos.y
+
+    vertical2_x = vertical1_x + vertical_spacing
+    vertical2_y = vertical1_y
+
+    # Calculate position for the horizontal block
+    horizontal_x = (vertical1_x + vertical2_x) / 2  # Centered between vertical blocks
+    horizontal_y = vertical1_y
+    horizontal_z = vertical_block1.size.z + horizontal_block.size.z / 2 + PLACEHOLDER_FLOAT  # On top of vertical blocks
+
+    # Build the bridge
+    # Place first vertical block
+    pick('block_red')
+    place(vertical1_x, vertical1_y, z=vertical_block1.size.z / 2)
+
+    # Place second vertical block
+    pick('block_green')
+    place(vertical2_x, vertical2_y, z=vertical_block2.size.z / 2)
+
+    # Place horizontal block
+    pick('block_blue')
+    place(horizontal_x, horizontal_y, z=horizontal_z, rotated=True)
 """
     
     def cost_func(C: ry.Config):
@@ -102,11 +116,10 @@ if __name__ == "__main__":
         # blue_block_error += np.linalg.norm(blue_block.getPosition() - (green_block.getPosition() + red_block.getPosition())*.5)
         blue_block_error += np.abs((blue_block.getPosition()[2] - red_block.getPosition()[2]) - .06 - .02)
         # blue_block_error = np.abs(blue_block.getPosition()[2]-.8)
-
         # Rotations
         # red_block_error += np.linalg.norm(C.eval(ry.FS.vectorZ, ["block_red"])[0][0] - np.array([0., 0., 1.]))
         # green_block_error += np.linalg.norm(C.eval(ry.FS.vectorZ, ["block_green"])[0][0] - np.array([0., 0., 1.]))
-        blue_block_error += C.eval(ry.FS.scalarProductZZ, ["block_blue", "table"])[0][0]
+        # blue_block_error += C.eval(ry.FS.scalarProductZZ, ["block_blue", "table"])[0][0]
 
         total_cost = red_block_error + green_block_error + blue_block_error
 

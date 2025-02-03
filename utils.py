@@ -19,7 +19,7 @@ def cleanup_highlvl_func(original_func: str, compute_collisions: bool=True, visu
 
     lines = original_func.split('\n')
     
-    new_line = f"    env = RobotEnviroment(C, visuals={visuals}, verbose=1, compute_collisions={compute_collisions})"
+    new_line = f"    env = RobotEnviroment(C, visuals={visuals}, verbose=0, compute_collisions={compute_collisions})"
     lines.insert(1, new_line)
 
     execute_command = lines[0].replace("def ", "").replace(":", "")

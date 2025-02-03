@@ -55,7 +55,8 @@ class RobotEnviroment:
                  visuals: bool=False,
                  verbose: int=0,
                  compute_collisions: bool=True,
-                 on_real: bool=False):
+                 on_real: bool=False,
+                 use_botop: bool=False):
         self.C = C
         if on_real:
             self.bot = ry.BotOp(self.C, on_real)
@@ -66,6 +67,7 @@ class RobotEnviroment:
         self.grasp_direction = ""
         self.path = np.array([])
         self.compute_collisions = compute_collisions
+        self.use_botop = use_botop
 
     def pick(self, frame: str) -> bool:
         assert self.grabbed_frame == ""
@@ -79,7 +81,7 @@ class RobotEnviroment:
             M = manip.ManipulationModelling()
             M.setup_sequence(self.C, 1, accumulated_collisions=self.compute_collisions)
             M.grasp_box(1., gripper, frame, palm, gd)
-            M.solve()
+            M.solve(verbose=self.verbose)
             if not M.feasible:
                 continue
 
@@ -87,26 +89,27 @@ class RobotEnviroment:
             M2.no_collisions([.3,.7], [palm, frame], margin=.05)
             M2.retract([.0, .2], gripper)
             M2.approach([.8, 1.], gripper)
-            self.path = M2.solve()
+            self.path = M2.solve(verbose=self.verbose)
             if not M2.feasible:
                 continue
 
             if self.visuals:
                 M2.play(self.C)
                 self.C.attach(gripper, frame)
-            # elif self.use_botop:
-            #     self.bot.move(self.path, [3.])
-            #     while self.bot.getTimeToEnd() > 0:
-            #         self.bot.sync(self.C)
-            #     self.bot.gripperClose(ry._left)
-            #     while not self.bot.gripperDone(ry._left):
-            #         self.bot.sync(self.C)
-            #     self.C.attach(gripper, frame)
+            
+            elif self.use_botop:
+                self.bot.move(self.path, [3.])
+                while self.bot.getTimeToEnd() > 0:
+                    self.bot.sync(self.C)
+                self.bot.gripperClose(ry._left)
+                while not self.bot.gripperDone(ry._left):
+                    self.bot.sync(self.C)
+                self.C.attach(gripper, frame)
+
             else:
                 qt = self.path[-1]
                 self.C.setJointState(qt)
                 self.C.attach(gripper, frame)
-                self.C.view(True)
 
             self.grabbed_frame = frame
             self.grasp_direction = gd
@@ -114,7 +117,7 @@ class RobotEnviroment:
     
         return False
 
-    def place(self, x: float, y: float, z: float=.0, rotated: bool=False) -> bool:
+    def place(self, x: float, y: float, z: float=.0, rotated: bool=False, yaw: float=None) -> bool:
         assert self.grabbed_frame != ""
 
         table = "table"
@@ -141,42 +144,44 @@ class RobotEnviroment:
             M.place_box(1., self.grabbed_frame, table, palm, place_direction, on_table=False)
             M.target_position(1., self.grabbed_frame, [x, y, z])
 
-        # if yaw != None:
-        #     yaw = np.deg2rad(yaw)
-        #     scalar_prod = np.cos(yaw)
-        #     if up_vec == "x":
-        #         feature = ry.FS.scalarProductXZ
-        #     elif up_vec == "y":
-        #         feature = ry.FS.scalarProductXZ
-        #     elif up_vec == "z":
-        #         feature = ry.FS.scalarProductXX
-        #     else:
-        #         raise Exception(f"'{up_vec}' is not a valid up vector for a place motion!")
-            
-        #     M.komo.addObjective([1.], feature, [table, self.grabbed_frame], ry.OT.eq, [1e1], scalar_prod)
+        if yaw != None:
 
-        M.solve()
+            if place_direction == "x":
+                feature = ry.FS.scalarProductXZ
+            elif place_direction == "y":
+                feature = ry.FS.scalarProductXX
+            elif place_direction == "z":
+                feature = ry.FS.scalarProductXX
+            else:
+                raise Exception(f"'{place_direction}' is not a valid up vector for a place motion!")
+            
+            M.komo.addObjective([.8, 1.], feature, [table, self.grabbed_frame], ry.OT.eq, [1e1], yaw)
+
+        M.solve(verbose=self.verbose)
         if not M.feasible:
             return False
 
         M3 = M.sub_motion(0, accumulated_collisions=self.compute_collisions)
-        self.path = M3.solve()
+        self.path = M3.solve(verbose=self.verbose)
         if not M3.ret.feasible:
             M3.komo.report(plotOverTime=True)
-            self.C.view(True)
+            self.C.view(False)
             return False
 
         if self.visuals:
             M3.play(self.C)
             self.C.attach(table, self.grabbed_frame)
+        
+        elif self.use_botop:
+            self.bot.move(self.path, [3.])
+            while self.bot.getTimeToEnd() > 0:
+                self.bot.sync(self.C)
+            self.bot.gripperMove(ry._left)
+            while not self.bot.gripperDone(ry._left):
+                self.bot.sync(self.C)
+            self.C.attach(table, self.grabbed_frame)
+        
         else:
-            # self.bot.move(self.path, [3.])
-            # while self.bot.getTimeToEnd() > 0:
-            #     self.bot.sync(self.C)
-            # self.bot.gripperMove(ry._left)
-            # while not self.bot.gripperDone(ry._left):
-            #     self.bot.sync(self.C)
-            # self.C.attach(table, self.grabbed_frame)
             qt = self.path[-1]
             self.C.setJointState(qt)
             self.C.attach(table, self.grabbed_frame)
@@ -197,7 +202,7 @@ class RobotEnviroment:
         M.setup_pick_and_place_waypoints(self.C, gripper, frame, 1e-1, accumulated_collisions=False)
         pushStart = M.straight_push([1.,2.], frame, gripper, table)
         M.target_xy_position(2., frame, target_pos)
-        M.solve()
+        M.solve(verbose=self.verbose)
         if not M.ret.feasible:
             return False
 
@@ -209,13 +214,13 @@ class RobotEnviroment:
         M1.no_collisions([.15,.85], [frame, 'l_palm'], .02)
         M1.no_collisions([], [table, 'l_finger1'], .0)
         M1.no_collisions([], [table, 'l_finger2'], .0)
-        path1 = M1.solve()
+        path1 = M1.solve(verbose=self.verbose)
         if not M1.ret.feasible:
             return False
 
         M2 = M.sub_motion(1, accumulated_collisions=False)
         M2.komo.addObjective([], ry.FS.positionRel, [gripper, pushStart], ry.OT.eq, 1e1*np.array([[1,0,0],[0,0,1]]))
-        path2 = M2.solve()
+        path2 = M2.solve(verbose=self.verbose)
         if not M2.ret.feasible:
             return False
 

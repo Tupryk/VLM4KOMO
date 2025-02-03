@@ -1,0 +1,25 @@
+The following text defines abstract primitive functions which are well defined already. You can use them for manipulating the robot arm as you like
+
+pick(object_name: str)
+- Generates a motion plan to pick an object
+- Parameters:
+  - object_name (str): The frame name of the object to be picked.
+
+place(x: float, y: float, z: float=.0, rotated: bool=False)
+- Generates a place motion of the robot's object in hand
+- Parameters:
+  - x (float): Target position on the x axis.
+  - y (float): Target position on the y axis.
+  - z (float)(default: 0): Target position on the z axis, if 0 it will be on top of the table.
+  - rotated (str)(default: False): Boolean to indicate if the object should be rotated.
+
+push(object_name: str, relative_x: float, relative_y: float)
+- Generates a motion plan to push an object towards a relative position to the object
+- Parameters:
+  - object_name (str): The frame name of the object to be pushed.
+  - relative_x (float): The relative target position on the x axis.
+  - relative_y (float): The relative target position on the y axis.
+
+getObj(object_name: str)
+- Returns an object from which you can query the following parameters: pos.x, pos.y, pos.z, size.x, size.y, size.z
+  - object_name (str): The frame name of the object to be queried.

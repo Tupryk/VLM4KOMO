@@ -1,0 +1,8 @@
+Given the robotic primitive functions and the scene image, write a python function to solve the problem that will be defined later on.
+The scenes image horizontal axes is parallel to the robots x axis. The vertical image axis is parallel to the y axis. The up direction is in z. Think about which x, y and z values to use.
+All inputs to the primitive functions should be object parameters from the returned object in the getObject function and scalings of these values.
+Do not write any literal numbers, if it's completely necessary white them as PLACEHOLDER_FLOAT.
+Whenever setting some target position as a combination of different parameters add PLACEHOLDER_FLOAT as an offset.
+THE POSITION OF AN OBJECT IS WITH RESPECT TO CENTER OF IT'S MESH.
+Don't forget to pick before you place! Reason about your answer before writing the code. Be careful to follow the correct usage of the functions as descried earlier.
+It should solve the following problem: 

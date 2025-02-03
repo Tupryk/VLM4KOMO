@@ -1,0 +1,27 @@
+def build_bridge():
+    env = RobotEnviroment(C_copy, visuals=False, verbose=0, compute_collisions=False)
+    # Get object parameters
+    red_block = env.getObj("block_red")
+    green_block = env.getObj("block_green")
+    blue_block = env.getObj("block_blue")
+    
+    # Determine positions for vertical support blocks
+    support_x_offset = blue_block.size.x / 2 + red_block.size.x / 2 + -0.15423767551580947
+    support1_x = blue_block.pos.x - support_x_offset
+    support2_x = blue_block.pos.x + support_x_offset
+    support_y = blue_block.pos.y + -0.13971214184424946
+    support_z = red_block.size.z / 2  # Place directly on the table
+    
+    # Place vertical support blocks
+    env.pick("block_red")
+    env.place(support1_x, support_y, support_z)
+    
+    env.pick("block_green")
+    env.place(support2_x, support_y, support_z)
+    
+    # Place horizontal block on top
+    bridge_z = support_z + red_block.size.z / 2 + blue_block.size.z / 2 + -0.11920739360754724
+    env.pick("block_blue")
+    env.place(blue_block.pos.x, support_y, bridge_z, rotated=True, yaw=0.2548454781578809)
+
+build_bridge()
