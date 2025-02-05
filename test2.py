@@ -26,44 +26,30 @@ C_copy = ry.Config()
 C_copy.addConfigurationCopy(C)
 
 def build_bridge():
-    env = RobotEnviroment(C_copy, visuals=False, verbose=1, compute_collisions=False)
-    # Get object properties
-    red_block = env.getObj('block_red')
-    green_block = env.getObj('block_green')
-    blue_block = env.getObj('block_blue')
-
-    # Determine the blocks to use as vertical supports and the horizontal block
-    vertical_block1 = red_block
-    vertical_block2 = green_block
-    horizontal_block = blue_block
-
-    # Calculate the distance for the vertical blocks
-    vertical_spacing = horizontal_block.size.x + -0.15999622037570585  # Add a small buffer (_FLOAT_)
-
-    # Calculate positions for the vertical blocks
-    vertical1_x = vertical_block1.pos.x
-    vertical1_y = vertical_block1.pos.y
-
-    vertical2_x = vertical1_x + vertical_spacing
-    vertical2_y = vertical1_y
-
-    # Calculate position for the horizontal block
-    horizontal_x = (vertical1_x + vertical2_x) / 2  # Centered between vertical blocks
-    horizontal_y = vertical1_y
-    horizontal_z = vertical_block1.size.z + horizontal_block.size.z / 2 + -0.04000220803365792  # On top of vertical blocks
-
-    # Build the bridge
-    # Place first vertical block
-    env.pick('block_red')
-    env.place(vertical1_x, vertical1_y, z=vertical_block1.size.z / 2)
-
-    # Place second vertical block
-    env.pick('block_green')
-    env.place(vertical2_x, vertical2_y, z=vertical_block2.size.z / 2)
-
-    # Place horizontal block
-    env.pick('block_blue')
-    env.place(horizontal_x, horizontal_y, z=horizontal_z, rotated=True)
+    env = RobotEnviroment(C_copy, visuals=False, verbose=0, compute_collisions=True)
+    # Get object parameters
+    red_block = env.getObj("block_red")
+    green_block = env.getObj("block_green")
+    blue_block = env.getObj("block_blue")
+    
+    # Determine positions for vertical support blocks
+    support_x_offset = blue_block.size.x / 2 + red_block.size.x / 2 + 0.021653775891553203
+    support1_x = blue_block.pos.x - support_x_offset
+    support2_x = blue_block.pos.x + support_x_offset
+    support_y = blue_block.pos.y + 0.21266437153304402
+    support_z = red_block.size.z / 2  # Place directly on the table
+    
+    # Place vertical support blocks
+    env.pick("block_red")
+    env.place(support1_x, support_y, support_z)
+    
+    env.pick("block_green")
+    env.place(support2_x, support_y, support_z)
+    
+    # Place horizontal block on top
+    bridge_z = support_z + red_block.size.z / 2 + blue_block.size.z / 2 + -0.0419929878854249
+    env.pick("block_blue")
+    env.place(blue_block.pos.x, support_y, bridge_z, rotated=True, yaw=0.09093764421326257)
 
 build_bridge()
 

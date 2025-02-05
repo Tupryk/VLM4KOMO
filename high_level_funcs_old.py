@@ -1,6 +1,6 @@
 import numpy as np
 import robotic as ry
-
+from simulator import Simulator
 from utils import generate_blocks_scene
 import Robotic_Manipulation.manipulation as manip
 
@@ -56,7 +56,9 @@ class RobotEnviroment:
                  verbose: int=0,
                  compute_collisions: bool=True,
                  on_real: bool=False,
-                 use_botop: bool=False):
+                 use_botop: bool=False,
+                 use_sim: bool=True
+                 ):
         self.C = C
         if on_real:
             self.bot = ry.BotOp(self.C, on_real)
@@ -68,8 +70,16 @@ class RobotEnviroment:
         self.path = np.array([])
         self.compute_collisions = compute_collisions
         self.use_botop = use_botop
+        if use_botop:
+            self.bot = ry.BotOp(C, False)
+        self.use_sim = use_sim
+        self.feasible = True
+    
 
     def pick(self, frame: str) -> bool:
+        if not self.feasible:
+            return self.feasible
+        
         assert self.grabbed_frame == ""
 
         graspDirections = ['x', 'y']
@@ -106,6 +116,19 @@ class RobotEnviroment:
                     self.bot.sync(self.C)
                 self.C.attach(gripper, frame)
 
+            elif self.use_sim:
+                C2 = ry.Config()
+                C2.addConfigurationCopy(self.C)
+                sim = Simulator(C2)
+                xs, qs, xdots, qdots = sim.run_trajectory(self.path, 2, real_time=True)
+
+                sim._sim.closeGripper("l_gripper")
+                self.C.setJointState(qs[-1])
+                
+                self.C.attach(gripper, frame)
+
+
+
             else:
                 qt = self.path[-1]
                 self.C.setJointState(qt)
@@ -115,9 +138,13 @@ class RobotEnviroment:
             self.grasp_direction = gd
             return True
     
+        self.feasible = False
         return False
 
     def place(self, x: float, y: float, z: float=.0, rotated: bool=False, yaw: float=None) -> bool:
+        if not self.feasible:
+            return False
+        
         assert self.grabbed_frame != ""
 
         table = "table"
@@ -159,6 +186,7 @@ class RobotEnviroment:
 
         M.solve(verbose=self.verbose)
         if not M.feasible:
+            self.feasible = False
             return False
 
         M3 = M.sub_motion(0, accumulated_collisions=self.compute_collisions)
@@ -166,6 +194,7 @@ class RobotEnviroment:
         if not M3.ret.feasible:
             M3.komo.report(plotOverTime=True)
             self.C.view(False)
+            self.feasible = False
             return False
 
         if self.visuals:
@@ -180,6 +209,17 @@ class RobotEnviroment:
             while not self.bot.gripperDone(ry._left):
                 self.bot.sync(self.C)
             self.C.attach(table, self.grabbed_frame)
+
+        elif self.use_sim:
+            self.C.attach(table, self.grabbed_frame)
+
+            C2 = ry.Config()
+            C2.addConfigurationCopy(self.C)
+            sim = Simulator(C2)
+            xs, qs, xdots, qdots = sim.run_trajectory(self.path, 2, real_time=True, close_gripper=True)
+            
+            self.C.setJointState(qs[-1])
+            self.C.setFrameState(xs[-1])
         
         else:
             qt = self.path[-1]
@@ -204,6 +244,7 @@ class RobotEnviroment:
         M.target_xy_position(2., frame, target_pos)
         M.solve(verbose=self.verbose)
         if not M.ret.feasible:
+            self.feasible = False
             return False
 
         M1 = M.sub_motion(0, accumulated_collisions=False)
@@ -216,12 +257,14 @@ class RobotEnviroment:
         M1.no_collisions([], [table, 'l_finger2'], .0)
         path1 = M1.solve(verbose=self.verbose)
         if not M1.ret.feasible:
+            self.feasible = False
             return False
 
         M2 = M.sub_motion(1, accumulated_collisions=False)
         M2.komo.addObjective([], ry.FS.positionRel, [gripper, pushStart], ry.OT.eq, 1e1*np.array([[1,0,0],[0,0,1]]))
         path2 = M2.solve(verbose=self.verbose)
         if not M2.ret.feasible:
+            self.feasible = False
             return False
 
         if self.visuals:
@@ -229,6 +272,11 @@ class RobotEnviroment:
             self.C.attach(gripper, frame)
             M2.play(self.C, 1.)
             self.C.attach(table, frame)
+        
+        elif self.use_sim:
+            #TODO
+            pass
+
         else:
             self.bot.move(path1, [3.])
             while self.bot.getTimeToEnd() > 0:

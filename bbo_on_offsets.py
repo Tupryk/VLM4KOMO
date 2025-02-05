@@ -8,7 +8,7 @@ from high_level_funcs_old import RobotEnviroment
 class LLM_OUT_BBO:
     def __init__(self, cost_func, llm_out: str, C: ry.Config):
         self.cost_func = cost_func
-        self.llm_out = cleanup_highlvl_func(llm_out, compute_collisions=False, visuals=False)
+        self.llm_out = cleanup_highlvl_func(llm_out, compute_collisions=True, visuals=False)
         self.C = C
         self.input_dim = llm_out.count("PLACEHOLDER_FLOAT")
         
@@ -36,7 +36,7 @@ class LLM_OUT_BBO:
         # print("Executing:\n", filled_llm_output)
         exec(filled_llm_output, globals(), locals())
         cost = self.cost_func(C_copy)
-        C_copy.view(True)
+        C_copy.view(False)
         
         del C_copy
         return cost
