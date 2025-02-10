@@ -30,8 +30,8 @@ features = {
     "angularVel": [1, 3],
     "negDistance": [2, 1],
     "qItself": [0, joint_dim],
-    "aboveBox": [2, 4],
-    "insideBox": [2, 6]
+    # "aboveBox": [2, 4],
+    # "insideBox": [2, 6]
 }
 
 contraint_types = [
