@@ -1,25 +1,43 @@
 import re
 import ast
-from lookup import features, frame_names, contraint_types
+from lookup import features, contraint_types
 
 
 max_times = 10
 
-def tokenize_komo(text: str) -> list:
+def tokenize_komo(text: str, frame_names: list[str]) -> list:
     
     tokens = []
     feature_list = list(features.keys())
+
+    uniform_token = max_times + len(feature_list) + len(contraint_types)+ 2
+    objective_start_token = uniform_token + 1
+    mode_switch_token = uniform_token + 2
+    komo_end_token = uniform_token + 3
 
     for line in text.splitlines():
         if "komo.addObjective(" in line:
 
             if not ("accumulatedCollisions" in line or "jointLimits" in line):
+                tokens.append(objective_start_token)
+
                 lists = re.findall(r'\[.*?\]', line)
                 params_in_objective = re.split(r',\s*(?![^\[\]]*\])', line)
 
-                times = int(lists[0].replace("[", "").replace("]", ""))
-                assert times < 10
-                tokens.append(times)
+                times = lists[0].replace("[", "").replace("]", "").split(", ")
+                if not '.' in times[0]:
+                    if len(times) > 1:
+                        start = int(times[0])
+                        end = int(times[1])
+                        assert start < 10 and end < 10 and start < end
+                        tokens.append(start)
+                        tokens.append(end)
+                    else:
+                        tokens.append(int(times[0]))
+                else:
+                    tokens.append(uniform_token)
+                    if len(times) > 1:
+                        tokens.append(uniform_token)
 
                 current_offset = max_times
 
@@ -31,10 +49,8 @@ def tokenize_komo(text: str) -> list:
 
                 frames = ast.literal_eval(lists[1])
                 for f in frames:
-                    frame_idx = frame_names.index(f) + current_offset
+                    frame_idx = frame_names.index(f) + komo_end_token + 1
                     tokens.append(frame_idx)
-
-                current_offset += len(frame_names)
 
                 type_ = params_in_objective[3].replace(" ", "").replace(")", "").replace("ry.OT.", "")
                 type_idx = contraint_types.index(type_) + current_offset
@@ -60,44 +76,103 @@ def tokenize_komo(text: str) -> list:
                         target_idx = current_offset
                         tokens.append(target_idx)
 
+        elif "komo.addModeSwitch(" in line:
+            tokens.append(mode_switch_token)
+
+            lists = re.findall(r'\[.*?\]', line)
+            params_in_objective = re.split(r',\s*(?![^\[\]]*\])', line)
+
+            times = lists[0].replace("[", "").replace("]", "").split(", ")
+            if not '.' in times[0]:
+                start = int(times[0])
+                end = int(times[1])
+                assert start < 10 and end < 10 and start < end
+                tokens.append(start)
+                tokens.append(end)
+            else:
+                tokens.append(uniform_token)
+                tokens.append(uniform_token)
+
+            # TODO: Add different types of mode switch features
+
+            frames = ast.literal_eval(lists[1])
+            for f in frames:
+                frame_idx = frame_names.index(f) + komo_end_token + 1
+                tokens.append(frame_idx)
+
+    tokens.append(komo_end_token)
     return tokens
 
 
-def komo_from_indices(indices: list[int]) -> str:
+def komo_from_indices(indices: list[int], frame_names: list[str]) -> str:
     
     text = ""
     feature_list = list(features.keys())
     prev_type = ""
     had_mode_switch = False
+    in_mode_switch = False
+
+    uniform_token = max_times + len(feature_list) + len(contraint_types)+ 2
+    objective_start_token = uniform_token + 1
+    mode_switch_token = uniform_token + 2
+    komo_end_token = uniform_token + 3
     
     for i in indices:
+        original_i = i
+
+        if i == komo_end_token:
+            break
+
+        if i == uniform_token:
+            if prev_type == "mode_switch" or prev_type == "komo_start":
+                text += "["
+            elif prev_type != "uniform":
+                text += "], ["
+            else:
+                text += ", "
+            text += f"0.0"
+            prev_type = "uniform"
+            continue
         
-        if i < max_times:
-            if prev_type == "target":
+        if i == objective_start_token:
+            if in_mode_switch:
+                text += f"], {not had_mode_switch})\n"    
+                had_mode_switch = True
+                in_mode_switch = False
+            if prev_type == "uniform" or prev_type == "scale":
+                text += "])\n"
+            text += "komo.addObjective("
+            prev_type = "komo_start"
+            continue
+
+        if i == mode_switch_token:
+            if prev_type == "uniform":
                 text += "])\n"
             elif prev_type != "":
                 text += ")\n"
-            text += f"komo.addObjective([{i}], "
+            text += "komo.addModeSwitch("
+            in_mode_switch = True
+            prev_type = "mode_switch"
+            continue
+        
+        if i < max_times:
+            if prev_type == "komo_start" or prev_type == "mode_switch":
+                text += "["
+            elif prev_type == "times":
+                text += ", "
+            text += f"{i}"
             prev_type = "times"
             continue
 
         i -= max_times
         if i < len(feature_list):
+            if prev_type == "times" or prev_type == "uniform":
+                text += "], "
             text += f"ry.FS.{feature_list[i]}, "
             prev_type = "feature"
             continue
 
         i -= len(feature_list)
-        if i < len(frame_names):
-            if prev_type != "frame":
-                text += "["
-            else:
-                text += ", "
-            text += f"'{frame_names[i]}'"
-            prev_type = "frame"
-            continue
-
-        i -= len(frame_names)
         if i < len(contraint_types):
             if prev_type != "frame":
                 text += "["
@@ -112,43 +187,51 @@ def komo_from_indices(indices: list[int]) -> str:
             else:
                 text += ", "
             if i:
-                text += f"1e0"
+                text += f"1e1"
             else:
                 text += f"0"
             prev_type = "scale"
             continue
         
-        if prev_type != "target":
-            text += "], ["
-        else:
-            text += ", "
-        text += f"0.0"
-        prev_type = "target"
-
-    if prev_type == "target":
+        frame_idx = original_i - komo_end_token - 1
+        if frame_idx >= 0:
+            if in_mode_switch and prev_type != "frame":
+                text += "], ry.SY.stable, ["
+            elif prev_type != "frame":
+                text += "["
+            else:
+                text += ", "
+            text += f"'{frame_names[frame_idx]}'"
+            prev_type = "frame"
+            continue
+        
+    if prev_type == "uniform":
         text += "]"
+
+    elif in_mode_switch:
+        text += f"], {not had_mode_switch}"
     text += ")\n"
+
     return text
 
 
 if __name__ == "__main__":
-    text = """komo = ry.KOMO(C, 4, 32, 2, False)
+    text = """komo = ry.KOMO(C, 3, 8, 2, True)
 komo.addControlObjective([], 0, 1e-2)
 komo.addControlObjective([], 1, 1e-1)
 komo.addControlObjective([], 2, 1e0)
 komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)
 komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq)
-komo.addObjective([1], ry.FS.scalarProductZZ, ['handle', 'box1'], ry.OT.eq, [1e2], [4.232])
-komo.addObjective([1], ry.FS.insideBox, ['handle', 'l_gripper'], ry.OT.eq, [1e1], [2.488, -2.336, -3.359, -0.581, -4.351, -2.188])
-komo.addObjective([1], ry.FS.angularVel, ['handle'], ry.OT.sos, [1e0], [1.251, 1.564, 5.736])
-komo.addObjective([1], ry.FS.position, ['l_gripper'], ry.OT.eq, [1e1], [-1.545, -3.036, -0.439])
-komo.addObjective([2], ry.FS.aboveBox, ['box2', 'box1'], ry.OT.eq, [1e1, 1e1, 0, 0], [-1.872, -4.047, -1.732, -4.917])
-komo.addObjective([3], ry.FS.scalarProductYY, ['l_gripper', 'box2'], ry.OT.eq, [1e-1], [-3.765])
-komo.addObjective([3], ry.FS.qItself, [], ry.OT.ineq, [0, 1e1, 0, 0, 1e1, 0, 1e1, 1e1, 0, 1e1], [1.286, 3.407, 5.601, -5.017, 2.019, -5.365, 1.953, 2.045, 1.306, 4.496])
-komo.addObjective([4], ry.FS.scalarProductXZ, ['box2', 'handle'], ry.OT.ineq, [1e0], [-0.993])
-komo.addObjective([4], ry.FS.quaternion, ['l_gripper'], ry.OT.ineq, [1e1], [3.345, 0.657, 2.76, -0.874])"""
+
+komo.addObjective([1], ry.FS.negDistance, ['r_gripper', 'obj2'], ry.OT.eq, [1e1], [0.013])
+komo.addModeSwitch([1, 2], ry.SY.stable, ['r_gripper', 'obj2'], True)
+komo.addObjective([1.2, 3.2], ry.FS.position, ['obj2'], ry.OT.eq, [1e1])
+komo.addObjective([1.4], ry.FS.position, ['obj2'], ry.OT.eq, [1e1], [-1.97, 0.23, 1.21])
+komo.addModeSwitch([0.8, 1.2], ry.SY.stable, ['floor', 'obj2'], False)"""
+
+    frame_names = ['r_gripper', 'obj2', 'floor']
     
-    tokens = tokenize_komo(text)
+    tokens = tokenize_komo(text, frame_names)
     print(tokens)
-    komo_reconstruct = komo_from_indices(tokens)
+    komo_reconstruct = komo_from_indices(tokens, frame_names)
     print(komo_reconstruct)
