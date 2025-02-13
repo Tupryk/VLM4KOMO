@@ -13,6 +13,7 @@ komo.addObjective([1], ry.FS.vectorZ, [{end_effector}], ry.OT.eq, [1e0], {some_r
 // komo.addObjective([1], ry.FS.scalarProductZZ, [{end_effector}, {movable_object}], ry.OT.ineq, [-1e0], {some_rotation})
 // komo.addObjective([2], ry.FS.position, [{movable_object}], ry.OT.eq, [1e1, 1e1, 0], {target})
 // komo.addObjective([2], ry.FS.position, [{movable_object}], ry.OT.eq, [0, 0, 1e1], {target})
+// positionRel
 komo.addObjective([2], ry.FS.position, [{movable_object}], ry.OT.eq, [1e1], {target})
 
 // Approach / Retract

@@ -5,3 +5,7 @@ Check that modeswitches only occur when the objects are touching.
 Only include problems that change the enviroment (do we count just the robot?).
 State of the config will influence if a komo probem is feasible, therefore the generators should eventually be conditioned on it.
 Define a pdf for the target of each feature.
+manipulations with non endeffector parts
+Chain komo problems -> first do one then another
+Genetic algo to generate KOMO samples
+Represent floating point numbers as a combination of floating point numbers, kind of like coins?
