@@ -1,5 +1,36 @@
+import cma
+import numpy as np
+import robotic as ry
+from high_level_funcs_old import RobotEnviroment
+
+C = ry.Config()
+C.addFile(ry.raiPath('../rai-robotModels/scenarios/pandaSingle.g'))
+
+C.delFrame("panda_collCameraWrist")
+
+
+# Objects
+for i in range(3):
+    color = [0., 0., 0.]
+    color[i%3] = 1
+    if i > 2:
+        color[(i+1)%3] = 1   
+
+    C.addFrame(f"block_{i}") \
+        .setPosition([(i%3)*.15, (i//3)*.1+.1, .71]) \
+        .setShape(ry.ST.ssBox, size=[.04, .04, .12, 0.005]) \
+        .setColor(color) \
+        .setContact(1) \
+        .setMass(.1)
+    
+
+C_copy = ry.Config()
+
+C_copy.addConfigurationCopy(C)
+
 def build_bridge():
     env = RobotEnviroment(C_copy, visuals=False, verbose=0, compute_collisions=True)
+
     # Get block objects
     red_block = env.getObj("block_0")
     green_block = env.getObj("block_1")
@@ -9,8 +40,8 @@ def build_bridge():
     center_x, center_y = red_block.pos.x, red_block.pos.y
     
     # Placeholder optimization values
-    horizontal_offset = -0.30610174105607285
-    vertical_offset = 0.41336751295580937
+    horizontal_offset = red_block.size.x * 1
+    vertical_offset = green_block.size.z * 1
     
     # Position for the bottom horizontal block
     bottom_x, bottom_y = center_x, center_y
@@ -36,4 +67,7 @@ def build_bridge():
     env.place(top_x, top_y, z=top_z, rotated=True)
 
 
+
 build_bridge()
+
+C_copy.view(True)

@@ -87,6 +87,19 @@ class Simulator:
             if real_time:
                 time.sleep(1e-3)
                 self.config.view()
+
+
+        #let physics simulation still work (falling e.g)
+        if (close_gripper):
+            self._sim.openGripper("l_gripper")
+            for i in range(1, 200):
+                self._sim.step([], tau, ry.ControlMode.spline)
+                xs[sim_steps], _, __, ___= self._sim.getState()
+
+                if real_time:
+                    time.sleep(1e-3)
+                    self.config.view()
+
         # Reset simulation and environments
         self.reset()
 

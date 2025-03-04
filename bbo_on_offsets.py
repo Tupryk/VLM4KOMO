@@ -1,6 +1,8 @@
 import cma
 import numpy as np
 import robotic as ry
+import os 
+
 
 from utils import cleanup_highlvl_func
 from high_level_funcs_old import RobotEnviroment
@@ -38,6 +40,15 @@ class LLM_OUT_BBO:
         cost = self.cost_func(C_copy)
         C_copy.view(False)
         
+        # Get the number of existing files in the outputs directory
+        output_dir = "outputs"
+        i = len([name for name in os.listdir(output_dir) if os.path.isfile(os.path.join(output_dir, name))])
+
+        if cost < 0.01:
+            with open(f"{output_dir}/filled_llm_output{i}.txt", "w") as file:
+                file.write(filled_llm_output)
+
+
         del C_copy
         return cost
 
@@ -99,21 +110,19 @@ if __name__ == "__main__":
 
         # Positions
         green_block_error += np.abs(np.linalg.norm(green_block.getPosition() - red_block.getPosition()) - 0.12)
-        # blue_block_error += np.linalg.norm(blue_block.getPosition() - (green_block.getPosition() + red_block.getPosition())*.5)
         blue_block_error += np.abs((blue_block.getPosition()[2] - red_block.getPosition()[2]) - .06 - .02)
-        # blue_block_error = np.abs(blue_block.getPosition()[2]-.8)
 
         # Rotations
-        # red_block_error += np.linalg.norm(C.eval(ry.FS.vectorZ, ["block_red"])[0][0] - np.array([0., 0., 1.]))
-        # green_block_error += np.linalg.norm(C.eval(ry.FS.vectorZ, ["block_green"])[0][0] - np.array([0., 0., 1.]))
         blue_block_error += C.eval(ry.FS.scalarProductZZ, ["block_blue", "table"])[0][0]
-
-        total_cost = red_block_error + green_block_error + blue_block_error
+        height_diff = C.eval(ry.FS.positionDiff, ["l_gripper", "table"])[0][2]
+        height_correction_error =  100*max(0, height_diff - 0.23)**2  # Only penalize if above 20cm
+        total_cost = red_block_error + green_block_error + blue_block_error + height_correction_error
 
         print("+-------------------------------+")
         print("Red block error: ", red_block_error)
         print("Green block error: ", green_block_error)
         print("Blue block error: ", blue_block_error)
+        print("height_correction_error:", height_correction_error)
         print("Total cost: ", total_cost)
         print("+-------------------------------+")
         return total_cost

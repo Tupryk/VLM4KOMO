@@ -1,0 +1,21 @@
+komo = ry.KOMO(C, 2, 8, 2, True)
+komo.addControlObjective([], 0, 1e-2)
+komo.addControlObjective([], 1, 1e-1)
+komo.addControlObjective([], 2, 1e0)
+komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)
+komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq)
+
+// Can chain multiple of these pick places
+// komo.addObjective([1], ry.FS.positionDiff, [{end_effector}, {movable_object}], ry.OT.eq, [1e1])
+komo.addObjective([1], ry.FS.negDistance, [{end_effector}, {movable_object}], ry.OT.eq, [1e1], {small_positive_target})
+komo.addObjective([1], ry.FS.vectorZ, [{end_effector}], ry.OT.eq, [1e0], {some_rotation})
+// komo.addObjective([1], ry.FS.scalarProductZZ, [{end_effector}, {movable_object}], ry.OT.ineq, [1e0], {some_rotation})
+// komo.addObjective([1], ry.FS.scalarProductZZ, [{end_effector}, {movable_object}], ry.OT.ineq, [-1e0], {some_rotation})
+// komo.addObjective([2], ry.FS.position, [{movable_object}], ry.OT.eq, [1e1, 1e1, 0], {target})
+// komo.addObjective([2], ry.FS.position, [{movable_object}], ry.OT.eq, [0, 0, 1e1], {target})
+// positionRel
+komo.addObjective([2], ry.FS.position, [{movable_object}], ry.OT.eq, [1e1], {target})
+
+// Approach / Retract
+
+komo.addModeSwitch([1, 2], ry.SY.stable, [{end_effector}, {movable_object}], True)
