@@ -21,6 +21,7 @@ def load_single_from_type(C: ry.Config, new_name: str="", root_path: str="rai_jo
     print(f"Files found inside {root_path}: {len(g_files)}")
 
     selected_file = np.random.choice(g_files)
+    print(selected_file)
 
     if not new_name:
         new_name = os.path.basename(os.path.normpath(root_path))

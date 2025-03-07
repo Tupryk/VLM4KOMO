@@ -20,24 +20,31 @@ def generate_random_kitchen(seed: int=None, root_path: str="") -> ry.Config:
     omnibase_frame_z = omnibase_frame.getPosition()[2]
     omnibase_frame.setPosition([0, 0, omnibase_frame_z+z_offset])
 
-    #C = load_single_from_type(C, pos=[1., 1., .5], root_path="rai_jointed/fixtures/stovetops")
+    # # C = load_single_from_type(C, pos=[1., 1., .5], root_path="rai_jointed/fixtures/stovetops")
     
-    # C = load_single_from_type(C, pos=[1., -1.5, .8], root_path="rai_jointed/fixtures/toasters")
-    C = load_single_from_type(C, pos=[1., 1., .5+z_offset], rot=rowan.from_euler(0, 0, 0), root_path=f"{root_path}rai_jointed/fixtures/stoves")
-    C = load_single_from_type(C, pos=[2., 1., .9+z_offset], rot=rowan.from_euler(0, 0, 0), root_path=f"{root_path}rai_jointed/fixtures/sinks")
+    # # C = load_single_from_type(C, pos=[1., -1.5, .8], root_path="rai_jointed/fixtures/toasters")
+    # C = load_single_from_type(C, pos=[1., 1., .5+z_offset], rot=rowan.from_euler(0, 0, 0), root_path=f"{root_path}rai_jointed/fixtures/stoves")
+    # C = load_single_from_type(C, pos=[2., 1., .9+z_offset], rot=rowan.from_euler(0, 0, 0), root_path=f"{root_path}rai_jointed/fixtures/sinks")
     C.addFrame("counter_sink") \
-    .setPosition([2., 1., .36+z_offset]) \
-    .setShape(ry.ST.ssBox, [1.2, .8, .7, .001])
+        .setPosition([.5, 1., .26+z_offset]) \
+        .setShape(ry.ST.ssBox, [.7, .3, .5, .001]) \
+        .setContact(1)
 
-
-    C = load_single_from_type(C, pos=[3., -1., .5+z_offset], rot=rowan.from_euler(np.pi, 0, 0), root_path=f"{root_path}rai_jointed/fixtures/ovens")
-    C = load_single_from_type(C, pos=[2., -1., .5+z_offset], rot=rowan.from_euler(np.pi, 0, 0), root_path=f"{root_path}rai_jointed/fixtures/dishwashers")
+    # C = load_single_from_type(C, pos=[3., -1., .5+z_offset], rot=rowan.from_euler(np.pi, 0, 0), root_path=f"{root_path}rai_jointed/fixtures/ovens")
+    # C = load_single_from_type(C, pos=[2., -1., .5+z_offset], rot=rowan.from_euler(np.pi, 0, 0), root_path=f"{root_path}rai_jointed/fixtures/dishwashers")
 
    # Counter with random objects
     C = load_rand_objs(C, dims=[1., .6, 0.], pos=[1., -1., .8+z_offset], root_path=root_path)
     C.addFrame("counter") \
         .setPosition([1., -1, .35+z_offset]) \
-        .setShape(ry.ST.ssBox, [1.2, .8, .7, .001])
+        .setShape(ry.ST.ssBox, [1.2, .8, .7, .001]) \
+        .setContact(1)
+    
+    C.addFrame("table_red") \
+        .setPosition([-1., 0, .35+z_offset]) \
+        .setShape(ry.ST.ssBox, [.8, 1.2, .7, .001]) \
+        .setColor([1, 0, 0]) \
+        .setContact(1)
     
     C.addFrame("floor") \
         .setPosition([0, 0, -.025+z_offset]) \

@@ -1,3 +1,4 @@
+import re
 import numpy as np
 from lookup import contraint_types
 from utils import get_rand_scale_vec
@@ -8,21 +9,51 @@ def init_komo(phases_count: int,
               accumulated_collisions: bool)-> str:
     final_komo = ""
     final_komo += f"komo = ry.KOMO(C, {phases_count}, {slices}, 2, {accumulated_collisions})\n"
-    final_komo += f"komo.addControlObjective([], 0, 1e-2)\n"
+    final_komo += f"komo.addControlObjective([], 0, 1e-1)\n"
     final_komo += f"komo.addControlObjective([], 1, 1e-1)\n"
     final_komo += f"komo.addControlObjective([], 2, 1e0)\n"
     final_komo += f"komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)\n"
     if accumulated_collisions:
         final_komo += f"komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq)\n"
+    # Omnibase shouldn't move too much
+    final_komo += f"komo.addObjective([], ry.FS.position, ['omnibase'], ry.OT.sos, [1e0], [], 1)\n"
+    # TODO: Figure out what this does: komo.addQuaternionNorms()
     return final_komo
 
 
+def add_submotions(original_komo: str) -> str:
+    first_line = original_komo.splitlines()[0]
+    pattern = r"komo\s*=\s*ry\.KOMO\([^,]*,\s*(\d+)"
+    match = re.search(pattern, first_line)
+    if not match:
+        return original_komo
+    phase_count = int(match.group(1))
+    original_komo += "\n### SUB-MOTIONS ###\n"
+    original_komo += "komos = []\n"
+    original_komo += "for phase in range(3):\n"
+    original_komo += "    (C0, q0, q1) = komo.getSubProblem(phase)\n\n"
+    original_komo += "    sub_komo = ry.KOMO(C0, 1, 32, 2, True)\n"
+    original_komo += "    sub_komo.addControlObjective([], 0, 1e-1)\n"
+    original_komo += "    sub_komo.addControlObjective([], 1, 1e-1)\n"
+    original_komo += "    sub_komo.addControlObjective([], 2, 1e0)\n"
+    original_komo += "    sub_komo.addObjective([], ry.FS.jointLimits, [], ry.OT.ineq)\n"
+    original_komo += "    sub_komo.addObjective([], ry.FS.accumulatedCollisions, [], ry.OT.eq)\n\n"
+    original_komo += "    # Zero velocity at the end\n"
+    original_komo += "    sub_komo.addObjective([1.], ry.FS.qItself, [], ry.OT.eq, [1e0], [], 1)\n"
+    original_komo += "    sub_komo.initWithWaypoints([q1], 1, interpolate=True, qHomeInterpolate=.5, verbose=0)\n"
+    original_komo += "    sub_komo.addObjective([1.], ry.FS.qItself, [], ry.OT.eq, scale=[1e0], target=q1)\n\n"
+    original_komo += "    komos.append(sub_komo)\n\n"
+    original_komo += "# Sub-motion 0 extras\n\n"
+    original_komo += "# Sub-motion 1 extras\n\n"
+    original_komo += "# Sub-motion 2 extras\n\n"
+
+
 def gen_rand_contraint(frame_names: list[str],
-                       lucky_frames: list[str],
                        features: list[str],
-                       lucky_features: list[str],
                        start: float,
-                       end: float = None,
+                       end: float=None,
+                       lucky_frames: list[str]=[],
+                       lucky_features: list[str]=[],
                        prob_lucky_frame: float=.7,
                        target_prob: float=.7,
                        prob_lucky_feature: float=.3,
@@ -33,7 +64,7 @@ def gen_rand_contraint(frame_names: list[str],
     else:
         times = f"[{start}]"
 
-    if prob_lucky_feature:
+    if len(lucky_features) and prob_lucky_feature:
         feature_name = np.random.choice(lucky_features)
     else:
         feature_name = np.random.choice(list(features.keys()))
@@ -63,7 +94,7 @@ def gen_rand_contraint(frame_names: list[str],
     frames = np.random.choice(
         frame_names, frames_count, replace=False).tolist()
 
-    if np.random.random() < prob_lucky_frame:
+    if len(lucky_frames) and np.random.random() < prob_lucky_frame:
         lucky_frame = np.random.choice(lucky_frames)
         if frames_count == 2 and np.random.choice([0, 1]):
             frames[1] = str(lucky_frame)
@@ -103,8 +134,8 @@ def random_start_end(phases_count: int, uniform_prob: float) -> tuple[float, flo
 
 def generate_random_komo(frame_names: list[str],
                          features: dict,
-                         lucky_frames: list[str],
-                         lucky_features: list[str],
+                         lucky_frames: list[str]=[],
+                         lucky_features: list[str]=[],
                          prob_lucky_frame: float=.7,
                          prob_lucky_feature: float=.3,
                          max_phases: int=4,
@@ -115,7 +146,7 @@ def generate_random_komo(frame_names: list[str],
                          prob_mode_switch: float=.5,
                          max_mode_switches: int=2,
                          uniform_mode_switch_prob: float=.1,
-                         slices: int=8,
+                         slices: int=1,
                          target_prob: float=.7,
                          scale_as_vec_prob: float=.2,
                          accumulated_collisions: bool=True) -> str:
@@ -131,11 +162,11 @@ def generate_random_komo(frame_names: list[str],
         repeats = np.random.randint(1, max_phase_contraints+1)
         for _ in range(repeats):
             final_komo += gen_rand_contraint(frame_names,
-                                             lucky_frames,
                                              features,
-                                             lucky_features,
                                              i+1,
                                              None,
+                                             lucky_frames,
+                                             lucky_features,
                                              prob_lucky_frame,
                                              target_prob,
                                              prob_lucky_feature,
@@ -146,11 +177,11 @@ def generate_random_komo(frame_names: list[str],
         for i in range(sub_count):
             start, end = random_start_end(phases_count, uniform_sub_prob)
             final_komo += gen_rand_contraint(frame_names,
-                                             lucky_frames,
                                              features,
-                                             lucky_features,
                                              start,
                                              end,
+                                             lucky_frames,
+                                             lucky_features,
                                              prob_lucky_frame,
                                              target_prob,
                                              prob_lucky_feature,
@@ -163,7 +194,7 @@ def generate_random_komo(frame_names: list[str],
             start, end = random_start_end(
                 phases_count, uniform_mode_switch_prob)
             frames = np.random.choice(frame_names, 2, replace=False).tolist()
-            if np.random.random() < prob_lucky_frame:
+            if len(lucky_frames) and np.random.random() < prob_lucky_frame:
                 lucky_frame = np.random.choice(lucky_frames)
                 frame_idx = np.random.choice([0, 1])
                 frames[frame_idx] = lucky_frame
@@ -189,7 +220,8 @@ def random_rot_objective(phase: int,
     
     else: # Soft rotation constraints
         slack = np.round(np.random.uniform(*soft_rot_slack), 2)
-        contraint = f"komo.addObjective([{phase}], ry.FS.scalarProduct{dir}Z, ['{reference_frame}', '{dominant_frame}'], ry.OT.ineq, [{-sign}e1], [{sign*(1-slack)}])\n"
+        sp = np.round(sign*(1-slack), 2)
+        contraint = f"komo.addObjective([{phase}], ry.FS.scalarProduct{dir}Z, ['{reference_frame}', '{dominant_frame}'], ry.OT.ineq, [{-sign}e1], [{sp}])\n"
     
     return contraint
 
@@ -221,72 +253,119 @@ def generate_random_pick(end_effector_frames: list[str],
                          approach_prob: float=.5,
                          specific_orientation_prob: float=.5,
                          retract_prob: float=.5,
-                         slices: int=8,
+                         slices: int=1,
                          hard_grasp_prob: float=.2,
                          drop_prob: float=.2,
                          drop_height: float=.7,
                          specific_place_prob: float=.1,
                          place_rot_prob: float=.5,
+                         endeff_pass_prob: float=.5,
+                         repeat_pass_prob: float=.2,
                          accumulated_collisions: bool=True) -> str:
     
-    end_effector = np.random.choice(end_effector_frames)
+    pick_end_effector = np.random.choice(end_effector_frames)
     movable_object = np.random.choice(movable_object_frames)
     world_frame = np.random.choice(world_attach_frames)
     approach = np.random.random() < approach_prob
     place = np.random.random() < place_prob
     drop = np.random.random() < drop_prob
     retract = place and (not drop) and np.random.random() < retract_prob
+    pases = len(end_effector_frames) > 1 and np.random.random() < endeff_pass_prob
 
-    # TODO: if two endeffectors, switch picked from one endeff to another
+    specific_place = np.random.random() < specific_place_prob
+    if not specific_place:
+        surfaces = all_frames.copy()
+        # surfaces.remove(movable_object)
+        # surfaces.remove(end_effector)
+        for f in all_frames:
+            if f.startswith("r_") or f.startswith("l_"):
+                surfaces.remove(f)
+        for f in movable_object_frames:
+            surfaces.remove(f)
 
-    phases_count = 1
+        surface = np.random.choice(surfaces)
+
+    if pases:
+        pass_sequence = [pick_end_effector]
+        if np.random.random() < repeat_pass_prob:
+            endeff_pases = np.random.randint(2, (len(end_effector_frames)+1)*4)
+        else:
+            endeff_pases = np.random.randint(2, len(end_effector_frames)+1)
+        for _ in range(endeff_pases-1):
+            endeffs_copy = end_effector_frames.copy()
+            endeffs_copy.remove(pass_sequence[-1])
+            pass_sequence.append(str(np.random.choice(endeffs_copy)))
+        place_endeff = pass_sequence[-1]
+    else:
+        place_endeff = pick_end_effector
+
+    phases_count = 1 if not pases else len(pass_sequence)
+    place_end_phase = phases_count+1
     if place:
         phases_count += 1
     if retract:
         phases_count += 1
 
-    final_komo = init_komo(phases_count, slices, accumulated_collisions)
+    final_komo = f"# Pick object {movable_object} with endeffector {pick_end_effector}"
+    # TODO: place under, place left, place right, etc.
+    if place:
+        if drop:
+            final_komo += f" and drop it.\n"
+        elif specific_place:
+            final_komo += f" and place it at a specific coordinate.\n"
+        else:
+            final_komo += f" and place it on top of {surface}.\n"
+    else:
+        final_komo += ".\n"
+
+    if pases:
+        final_komo += "# Follow the endeff pass sequence: "
+        for i, endeff in enumerate(pass_sequence):
+            final_komo += f"{endeff}"
+            if i != len(pass_sequence)-1:
+                final_komo += ", "
+        final_komo += ".\n"
+
+    final_komo += init_komo(phases_count, slices, accumulated_collisions)
 
     ### APPROACH ###
     if approach:
         pass
     
     ### PICK ###
-    final_komo += random_pick([1], end_effector, movable_object, hard_grasp_prob, specific_orientation_prob)
+    if not pases:
+        final_komo += random_pick([1], pick_end_effector, movable_object, hard_grasp_prob, specific_orientation_prob)
+
+    ### PASES ###
+    if pases:
+        for i, endeff in enumerate(pass_sequence):
+            final_komo += random_pick([1+i], endeff, movable_object, hard_grasp_prob, specific_orientation_prob)
+            final_komo += f"komo.addModeSwitch([{1+i}, {2+i}], ry.SY.stable, ['{endeff}', '{movable_object}'], {i==0})\n"
         
     ### PLACE ###
     if place:
-        final_komo += f"komo.addModeSwitch([1, 2], ry.SY.stable, ['{end_effector}', '{movable_object}'], True)\n"
+        if not pases:
+            final_komo += f"komo.addModeSwitch([{place_end_phase-1}, {place_end_phase}], ry.SY.stable, ['{place_endeff}', '{movable_object}'], True)\n"
         
         if drop:
-            final_komo += f"komo.addObjective([2], ry.FS.position, ['{movable_object}'], ry.OT.eq, [0, 0, 1e1], [0, 0, {drop_height}])\n"
+            final_komo += f"komo.addObjective([{place_end_phase}], ry.FS.position, ['{movable_object}'], ry.OT.eq, [0, 0, 1e1], [0, 0, {drop_height}])\n"
         
         else:
-            if np.random.random() < specific_place_prob:
+            if specific_place:
                 target = np.round(np.random.uniform(-2, 2, 3), 2).tolist()
                 target[2] = float(np.round(np.random.uniform(.5, 1.5), 2))
-                final_komo += f"komo.addObjective([2], ry.FS.position, ['{movable_object}'], ry.OT.eq, [1e1], {target})\n"
+                final_komo += f"komo.addObjective([{place_end_phase}], ry.FS.position, ['{movable_object}'], ry.OT.eq, [1e1], {target})\n"
             
             else: # Place on surface
-                surfaces = all_frames.copy()
-                # surfaces.remove(movable_object)
-                # surfaces.remove(end_effector)
-                for f in all_frames:
-                    if f.startswith("r_"):
-                        surfaces.remove(f)
-                for f in movable_object_frames:
-                    surfaces.remove(f)
-
-                surface = np.random.choice(surfaces)
                 z_dist = np.round(np.random.uniform(0., .1), 3)
                 xy_slack = np.round(np.random.uniform(0., .3), 3)
                 
                 # On top of surface
                 # TODO: add alternative with positionDiff
-                final_komo += f"komo.addObjective([2], ry.FS.positionRel, ['{surface}', '{movable_object}'], ry.OT.ineq, [0, 0, -1e1])\n"
+                final_komo += f"komo.addObjective([{place_end_phase}], ry.FS.positionRel, ['{surface}', '{movable_object}'], ry.OT.ineq, [0, 0, -1e1])\n"
                 # if np.random.choice([0, 1]):
-                final_komo += f"komo.addObjective([2], ry.FS.negDistance, ['{surface}', '{movable_object}'], ry.OT.ineq, [-1e1], [{-z_dist}])\n"
-                final_komo += f"komo.addObjective([2], ry.FS.negDistance, ['{surface}', '{movable_object}'], ry.OT.ineq, [1e1], [0])\n"
+                final_komo += f"komo.addObjective([{place_end_phase}], ry.FS.negDistance, ['{surface}', '{movable_object}'], ry.OT.ineq, [-1e1], [{-z_dist}])\n"
+                final_komo += f"komo.addObjective([{place_end_phase}], ry.FS.negDistance, ['{surface}', '{movable_object}'], ry.OT.ineq, [1e1], [0])\n"
                 # else:
                 #     feature_type = np.random.choice(["positionDiff", "positionRel"])
                 #     final_komo += f"komo.addObjective([2], ry.FS.{feature_type}, ['{surface}', '{movable_object}'], ry.OT.ineq, [0, 0, 1e1], [0, 0, {z_dist + .1}])\n"
@@ -294,16 +373,16 @@ def generate_random_pick(end_effector_frames: list[str],
                 # Relative xy of place
                 # TODO: alternatives for relative xy, measure surface dimensions?
                 feature_type = np.random.choice(["positionDiff", "positionRel"])
-                final_komo += f"komo.addObjective([2], ry.FS.{feature_type}, ['{movable_object}', '{surface}'], ry.OT.ineq, [1e1, 1e1, 0], [{xy_slack}, {xy_slack}, 0])\n"
-                final_komo += f"komo.addObjective([2], ry.FS.{feature_type}, ['{movable_object}', '{surface}'], ry.OT.ineq, [-1e1, -1e1, 0], [{-xy_slack}, {-xy_slack}, 0])\n"
+                final_komo += f"komo.addObjective([{place_end_phase}], ry.FS.{feature_type}, ['{movable_object}', '{surface}'], ry.OT.ineq, [1e1, 1e1, 0], [{xy_slack}, {xy_slack}, 0])\n"
+                final_komo += f"komo.addObjective([{place_end_phase}], ry.FS.{feature_type}, ['{movable_object}', '{surface}'], ry.OT.ineq, [-1e1, -1e1, 0], [{-xy_slack}, {-xy_slack}, 0])\n"
 
             if np.random.random() < place_rot_prob:
-                final_komo += random_rot_objective(2, movable_object, surface)
+                final_komo += random_rot_objective(place_end_phase, movable_object, world_frame)
                 
 
     ### RETRACT ###
     if retract:
-        final_komo += f"komo.addModeSwitch([2, 3], ry.SY.stable, ['{world_frame}', '{movable_object}'], False)\n"
+        final_komo += f"komo.addModeSwitch([{place_end_phase}, {place_end_phase+1}], ry.SY.stable, ['{world_frame}', '{movable_object}'], False)\n"
 
     return final_komo
 
@@ -311,7 +390,7 @@ def generate_random_pick(end_effector_frames: list[str],
 def generate_random_pivot(end_effector_frames: list[str],
                           jointed_frames: list[str],
                           joint_frames: list[str],
-                          slices: int=8,
+                          slices: int=1,
                           max_back_and_forth_phases: int=8,
                           accumulated_collisions: bool=True) -> str:
     
@@ -328,9 +407,8 @@ def generate_random_pivot(end_effector_frames: list[str],
 
     final_komo += f"komo.addObjective([0, 1], ry.FS.pose, ['{jointed_frame}'], ry.OT.eq, [1e1], [], 1)\n"
     final_komo += f"komo.addObjective([0, 1], ry.FS.qItself, ['{joint_frame}'], ry.OT.eq, [1e1], [], 1)\n"
-    final_komo += f"komo.addObjective([], ry.FS.position, ['omnibase'], ry.OT.sos, [1e0], [], 1)\n"
-    # final_komo += f"komo.addObjective([0, 2], ry.FS.pose, ['sinks'], ry.OT.eq, [1e1], [])\n"
 
+    # TODO: figure out the qTarget limits
     qTarget = np.round(np.random.uniform(-2, 2), 3)
     signs = [-1, 1]
     for i in range(back_and_forth_phases):
@@ -354,7 +432,7 @@ def generate_random_pivot(end_effector_frames: list[str],
 
 
 # For mobile base
-def generate_random_base_move(slices: int=8,
+def generate_random_base_move(slices: int=1,
                               accumulated_collisions: bool=True) -> str:
     
     final_komo = init_komo(2, slices, accumulated_collisions)
