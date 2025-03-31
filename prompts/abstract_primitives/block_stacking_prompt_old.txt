@@ -1,0 +1,37 @@
+The following text defines abstract primitive functions which are well defined already. You can use them for manipulating the robot arm as you like
+
+pick(object_name: str)
+- Generates a motion plan to pick an object
+- Parameters:
+  - object_name (str): The frame name of the object to be picked.
+
+place(x: float, y: float, z: float=.0, rotated: bool=False)
+- Generates a place motion of the robot's object in hand
+- Parameters:
+  - x (float): Target position on the x axis.
+  - y (float): Target position on the y axis.
+  - z (float)(default: 0): Target position on the z axis, if 0 it will be on top of the table.
+  - rotated (str)(default: False): Boolean to indicate if the object should be rotated.
+
+push(object_name: str, relative_x: float, relative_y: float)
+- Generates a motion plan to push an object towards a relative position to the object
+- Parameters:
+  - object_name (str): The frame name of the object to be pushed.
+  - relative_x (float): The relative target position on the x axis.
+  - relative_y (float): The relative target position on the y axis.
+
+getObj(object_name: str)
+- Returns an object from which you can query the following parameters: pos.x, pos.y, pos.z, size.x, size.y, size.z
+  - object_name (str): The frame name of the object to be queried.
+
+Given the robotic primitive functions and the scene image, write a python function to solve the problem that will be defined later on.
+The scenes image horizontal axes is parallel to the robots x axis. The vertical image axis is parallel to the y axis. The up direction is in z. Think about which x, y and z values to use.
+Do not write any literal numbers if possible, all inputs to the primitive functions should be object parameters from the returned object in the getObject function and scalings of these values.
+If a literal number is really needed write it as _PLACEHOLDER_FLOAT_.
+THE POSITION OF AN OBJECT IS WITH RESPECT TO CENTER OF IT'S MESH.
+Don't forget to pick before you place! Reason about your answer before writing the code. Be careful to follow the correct usage of the functions as descried earlier.
+It should solve the following problem: 
+Build a roman numeral one. A roman numeral one is defined as a horizontal block on the table, a vertical on top of it its center and another horizontal block on top of that vertical block. Make sure that the yaw and up_vec of the blocks make sense.
+Fill in the _PLACEHOLDER_FLOAT_ for 2-3 numbers you would optimize on.
+Here is a list of all available object names: ['world', 'table', 'cameraTop', 'cameraWrist', 'block_red', 'block_green', 'block_blue']
+Image: all blocks are in a vertical position

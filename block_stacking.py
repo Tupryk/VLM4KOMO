@@ -27,7 +27,7 @@ for i in range(3):
 C_copy = ry.Config()
 C_copy.addConfigurationCopy(C)
 qHome = C_copy.getJointState()
-
+C_copy.view(True)
 
 def build_bridge():
     env = RobotEnviroment(C_copy, visuals=False, verbose=0, compute_collisions=False)

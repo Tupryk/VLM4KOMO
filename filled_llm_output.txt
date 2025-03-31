@@ -1,39 +1,25 @@
 def build_bridge():
     env = RobotEnviroment(C_copy, visuals=False, verbose=0, compute_collisions=True)
     # Get block objects
+    # Get objects
     red_block = env.getObj("block_0")
     green_block = env.getObj("block_1")
     blue_block = env.getObj("block_2")
     
-    # Compute placement positions based on object sizes
-    center_x, center_y = red_block.pos.x, red_block.pos.y
+    # Compute positions
+    center_x = (red_block.pos.x + green_block.pos.x + blue_block.pos.x) / 3
+    center_y = (red_block.pos.y + green_block.pos.y + blue_block.pos.y) / 3
     
-    # Placeholder optimization values
-    horizontal_offset = -0.30610174105607285
-    vertical_offset = 0.41336751295580937
+    # Define triangle corner placements
+    place_positions = [
+        (red_block.pos.x + 0.1665409445744853, red_block.pos.y + -0.1299187812382711, red_block.pos.z, 0.0),
+        (green_block.pos.x + 0.0886395439744169, green_block.pos.y + -0.07760165113910647, green_block.pos.z, 2.094),
+        (blue_block.pos.x + -0.21389482299834028, blue_block.pos.y + -0.10015080917901326, blue_block.pos.z, -2.094)
+    ]
     
-    # Position for the bottom horizontal block
-    bottom_x, bottom_y = center_x, center_y
-    
-    # Position for the vertical block
-    vertical_x, vertical_y = center_x, center_y
-    vertical_z = red_block.size.z + vertical_offset  # Adjust placement height
-    
-    # Position for the top horizontal block
-    top_x, top_y = center_x, center_y
-    top_z = vertical_z + green_block.size.z + horizontal_offset  # Adjust top block height
-    
-    # Pick and place the bottom horizontal block
-    env.pick("block_0")
-    env.place(bottom_x, bottom_y, rotated=True)
-    
-    # Pick and place the vertical block
-    env.pick("block_1")
-    env.place(vertical_x, vertical_y, z=vertical_z, rotated=False)
-    
-    # Pick and place the top horizontal block
-    env.pick("block_2")
-    env.place(top_x, top_y, z=top_z, rotated=True)
+    # Pick and place the blocks
+    for block, (x, y, z, yaw) in zip(["block_0", "block_1", "block_2"], place_positions):
+        env.place(block, x, y, z, yaw=yaw)
 
 
 build_bridge()

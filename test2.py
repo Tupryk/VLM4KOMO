@@ -15,7 +15,7 @@ names = ["red", "green", "blue"]
 for i in range(3):
     color = [0., 0., 0.]
     color[i%3] = 1.
-    C.addFrame(f"block_{names[i]}") \
+    C.addFrame(f"block_{i}") \
         .setPosition([(i%3)*.15, (i//3)*.1+.1, .71]) \
         .setShape(ry.ST.ssBox, size=[.04, .04, .12, 0.005]) \
         .setColor(color) \
@@ -56,29 +56,41 @@ C_copy = ry.Config()
 C_copy.addConfigurationCopy(C)
 def build_bridge():
     env = RobotEnviroment(C_copy, visuals=False, verbose=0, compute_collisions=True)
-    # Get object parameters
-    red_block = env.getObj("block_red")
-    green_block = env.getObj("block_green")
-    blue_block = env.getObj("block_blue")
+    # Get block objects
+    red_block = env.getObj("block_0")
+    green_block = env.getObj("block_1")
+    blue_block = env.getObj("block_2")
     
-    # Determine positions for vertical support blocks
-    support_x_offset = blue_block.size.x / 2 + red_block.size.x / 2 + -0.10549055654747053
-    support1_x = blue_block.pos.x - support_x_offset
-    support2_x = blue_block.pos.x + support_x_offset
-    support_y = blue_block.pos.y + 0.2527571584373817
-    support_z = red_block.size.z / 2  # Place directly on the table
+    # Compute placement positions based on object sizes
+    center_x, center_y = red_block.pos.x, red_block.pos.y
     
-    # Place vertical support blocks
-    env.pick("block_red")
-    env.place(support1_x, support_y, support_z)
+    # Placeholder optimization values
+    horizontal_offset = 0.014996240515723465
+    vertical_offset = 0.02311625919409065
     
-    env.pick("block_green")
-    env.place(support2_x, support_y, support_z)
+    # Position for the bottom horizontal block
+    bottom_x, bottom_y = center_x, center_y
     
-    # Place horizontal block on top
-    bridge_z = support_z + red_block.size.z / 2 + blue_block.size.z / 2 + -0.0153674888522006
-    env.pick("block_blue")
-    env.place(blue_block.pos.x, support_y, bridge_z, rotated=True, yaw=0.1443180794199308)
+    # Position for the vertical block
+    vertical_x, vertical_y = center_x, center_y
+    vertical_z = red_block.size.z + vertical_offset  # Adjust placement height
+    
+    # Position for the top horizontal block
+    top_x, top_y = center_x, center_y
+    top_z = vertical_z + green_block.size.z + horizontal_offset  # Adjust top block height
+    
+    # Pick and place the bottom horizontal block
+    env.pick("block_0")
+    env.place(bottom_x, bottom_y, rotated=True)
+    
+    # Pick and place the vertical block
+    env.pick("block_1")
+    env.place(vertical_x, vertical_y, z=vertical_z, rotated=False)
+    
+    # Pick and place the top horizontal block
+    env.pick("block_2")
+    env.place(top_x, top_y, z=top_z, rotated=True)
+
 
 build_bridge()
 

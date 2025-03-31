@@ -3,6 +3,36 @@ import rowan
 import numpy as np
 import robotic as ry
 
+def rotate_quat_pi_yaw(quat):
+    angle = np.pi  # 180 degrees in radians
+    rotation_quat = rowan.from_axis_angle([0, 0, 1], angle)
+
+    # Rotate the given quaternion
+    rotated_quat = rowan.multiply(rotation_quat, quat)
+
+    # print("Original Quaternion:", quat)
+    # print("Rotated Quaternion:", rotated_quat)
+    return rotated_quat
+
+def relative_yaw(qA, qB):
+    """
+    Computes the relative rotation around the Z-axis (yaw) between two quaternions.
+
+    Parameters:
+    qA (array-like): Quaternion representing frame A (w, x, y, z).
+    qB (array-like): Quaternion representing frame B (w, x, y, z).
+
+    Returns:
+    float: Relative yaw angle in radians.
+    """
+    # Compute relative quaternion: q_rel = qB * qA⁻¹
+    q_rel = rowan.multiply(qB, rowan.inverse(qA))
+
+    # Convert quaternion to Euler angles (XYZ convention)
+    euler = rowan.to_euler(q_rel, convention="xyz")
+
+    # Extract the yaw (rotation around Z-axis)
+    return euler[2]
 
 def sample_rectangular_arena(width: float=0.4,
                             height: float=0.4,
